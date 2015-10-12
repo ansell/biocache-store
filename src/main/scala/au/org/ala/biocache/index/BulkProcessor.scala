@@ -1,5 +1,6 @@
 package au.org.ala.biocache.index
 
+import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.slf4j.LoggerFactory
 import au.org.ala.biocache.util.OptionParser
 import au.org.ala.biocache.Config
@@ -124,7 +125,7 @@ object BulkProcessor extends Tool with Counter with RangeCalculator {
               } else if (action == "repair") {
                 new RepairRecordsRunner(this, counter, startKey, endKey)
               } else if (action == "index") {
-                solrDirs += (dirPrefix + "/solr-create/biocache-thread-" + counter + "/data/index")
+                solrDirs += (dirPrefix + "/solr-create/biocache-thread-" + counter + "/biocache/data/index")
                 new IndexRunner(this,
                   counter,
                   startKey,
@@ -243,14 +244,14 @@ object IndexMergeTool extends Tool {
       FileUtils.forceMkdir(mergeDirFile)
     }
 
-    val mergedIndex = FSDirectory.open(mergeDirFile)
+    val mergedIndex = FSDirectory.open(mergeDirFile.toPath)
 
-    val writerConfig = (new IndexWriterConfig(Version.LUCENE_CURRENT, null))
+    val writerConfig = (new IndexWriterConfig(new StandardAnalyzer()))
       .setOpenMode(OpenMode.CREATE)
       .setRAMBufferSizeMB(rambuffer)
 
     val writer = new IndexWriter(mergedIndex, writerConfig)
-    val indexes = directoriesToMerge.map(dir => FSDirectory.open(new File(dir)))
+    val indexes = directoriesToMerge.map(dir => FSDirectory.open(new File(dir).toPath))
 
     logger.info("Adding indexes...")
     writer.addIndexes(indexes:_*)

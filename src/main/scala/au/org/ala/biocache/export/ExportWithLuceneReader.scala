@@ -1,6 +1,6 @@
 package au.org.ala.biocache.export
 
-import org.apache.lucene.index.IndexReader
+import org.apache.lucene.index.{DirectoryReader, IndexReader}
 import org.apache.lucene.store.FSDirectory
 import java.io.{FileWriter, File}
 import au.org.ala.biocache.util.OptionParser
@@ -13,14 +13,14 @@ object ExportForOutliers extends Tool {
 
   def main(args:Array[String]){
 
-    var indexDirectory = ""    
+    var indexDirectory = ""
     var exportDirectory = ""
 
     val parser = new OptionParser(help) {
       arg("indexDirectory", "The Lucene/SOLR index to export from e.g. /data/solr/biocache/data/index", {v:String => indexDirectory = v})
       arg("exportDirectory", "The directory to export to", {v:String => exportDirectory = v})
     }
-    if(parser.parse(args)){    
+    if(parser.parse(args)){
     	runExtract(indexDirectory,exportDirectory)
     }
   }
@@ -28,14 +28,14 @@ object ExportForOutliers extends Tool {
   def runExtract(indexDir:String, exportDir:String, separator:Char = '\t'){
     println("Running extract....")
     
-    val indexReader = IndexReader.open(FSDirectory.open(new File(indexDir)))
+    val indexReader = DirectoryReader.open(FSDirectory.open(new File(indexDir).toPath))
     
     val spWriter = new FileWriter(new File(exportDir + File.separator + "species-unsorted.txt"))
     val sbpWriter = new FileWriter(new File(exportDir + File.separator + "subspecies-unsorted.txt"))
-    
+
     var counter = 0
     val maxDocId = indexReader.maxDoc()
-    println("Number of documents...." + maxDocId)    
+    println("Number of documents...." + maxDocId)
 
     while(counter < maxDocId){
       val doc = indexReader.document(counter)
@@ -59,7 +59,7 @@ object ExportForOutliers extends Tool {
             +"\n"
           )
         }
-        
+
         if (rank == "subspecies" && !doc.getValues("subspecies_guid").isEmpty){
           sbpWriter.write(doc.getValues("subspecies_guid").head
             +separator+ doc.getValues("id").head
@@ -83,7 +83,7 @@ object ExportForOutliers extends Tool {
     spWriter.flush
     sbpWriter.close
     spWriter.close
-    
+
     println("Extract complete. Files located in " + exportDir)
   }
 }
@@ -92,7 +92,7 @@ object ExportSpecies {
 
   def main(args:Array[String]){
 
-    val indexReader = IndexReader.open(FSDirectory.open(new File(args.head)))
+    val indexReader = DirectoryReader.open(FSDirectory.open(new File(args.head).toPath))
     var counter = 0
     val maxDocId = indexReader.maxDoc()
     val separator = '\t'
@@ -106,7 +106,7 @@ object ExportSpecies {
 
         val rank = doc.getValues("rank").head
         if (rank == "species" || rank == "subspecies"){
-        
+
           println(doc.getValues("species_guid").head
             +separator+ doc.getValues("id").head
             +separator+ doc.getValues("latitude").head
@@ -129,7 +129,7 @@ object ExportSubspecies {
 
   def main(args:Array[String]){
 
-    val indexReader = IndexReader.open(FSDirectory.open(new File(args.head)))
+    val indexReader = DirectoryReader.open(FSDirectory.open(new File(args.head).toPath))
     var counter = 0
     val maxDocId = indexReader.maxDoc()
     val separator = '\t'

@@ -15,7 +15,7 @@ object IndexSearchIT {
      System.out.println("Starting to search for Victoria")
 
     val solrQuery = new SolrQuery();
-        solrQuery.setQueryType("standard");
+        solrQuery.setRequestHandler("standard");
         // Facets
         solrQuery.setFacet(true);
         solrQuery.addFacetField("basis_of_record");

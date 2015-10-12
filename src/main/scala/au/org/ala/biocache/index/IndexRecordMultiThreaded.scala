@@ -50,7 +50,7 @@ trait RangeCalculator {
 
     val firstRequest = Config.biocacheServiceUrl + "/occurrences/search?q=" + query + "&pageSize=1&facet=off&sort=row_key&dir=asc"
     val json = JSON.parseFull(Source.fromURL(new URL(firstRequest)).mkString)
-    if (!json.isEmpty) {
+    if (!json.isEmpty && json.get.asInstanceOf[Map[String, Object]].getOrElse("totalRecords", 0).asInstanceOf[Double].toInt > 0) {
       val totalRecords = json.get.asInstanceOf[Map[String, Object]].getOrElse("totalRecords", 0).asInstanceOf[Double].toInt
       logger.info("Total records: " + totalRecords)
 
@@ -84,7 +84,7 @@ trait RangeCalculator {
 
       buff
     } else {
-      Array()
+      Array.fill(1)((start, end))
     }
   }
 
@@ -430,25 +430,28 @@ class IndexRunner(centralCounter: Counter, threadId: Int, startKey: String, endK
 
   def run {
 
-    //solr-create/thread-0/conf
-    val newIndexDir = new File(targetConfDirPath)
+    //solr-create/thread-0/conf -> solr-create/thread-0/biocache/conf
+    val newIndexDir = new File(targetConfDirPath).getParentFile()
+    val newIndexCoreDir = new File(newIndexDir.getPath + "/biocache")
+    val newIndexConfDir = new File(newIndexDir.getPath + "/biocache/conf")
     if (newIndexDir.exists) {
       FileUtils.deleteDirectory(newIndexDir)
     }
-    FileUtils.forceMkdir(newIndexDir)
+    FileUtils.forceMkdir(newIndexConfDir)
 
     //CREATE a copy of SOLR home
     val sourceConfDir = new File(sourceConfDirPath)   //solr-template/biocache/conf
-    FileUtils.copyDirectory(sourceConfDir, newIndexDir)
+    FileUtils.copyDirectory(sourceConfDir, newIndexConfDir)
 
-    //COPY solr-template/biocache/solr.xml  -> solr-create/biocache-thread-0/solr.xml
-    FileUtils.copyFileToDirectory(new File(sourceConfDir.getParent + "/solr.xml"), newIndexDir.getParentFile)
+    //COPY solr-template/biocache/solr.xml  -> solr-create/biocache-thread-0/biocache/solr.xml
+    FileUtils.copyFileToDirectory(new File(sourceConfDir.getParent + "/solr.xml"), newIndexDir)
+    FileUtils.copyFileToDirectory(new File(sourceConfDir.getParent + "/core.properties"), newIndexCoreDir)
 
-    logger.info("Set SOLR Home: " + newIndexDir.getParent)
-    val indexer = new SolrIndexDAO(newIndexDir.getParent, Config.excludeSensitiveValuesFor, Config.extraMiscFields)
+    logger.info("Set SOLR Home: " + newIndexDir)
+    val indexer = new SolrIndexDAO(newIndexDir.getPath, Config.excludeSensitiveValuesFor, Config.extraMiscFields)
 
     // Specify the SOLR config to use
-    indexer.solrConfigPath = newIndexDir.getAbsolutePath + "/solrconfig.xml"
+    indexer.solrConfigPath = newIndexConfDir.getAbsolutePath + "/solrconfig.xml"
 
     var counter = 0
     val start = System.currentTimeMillis

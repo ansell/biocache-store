@@ -4,12 +4,12 @@ import com.google.inject.Inject
 import com.google.inject.name.Named
 import org.slf4j.LoggerFactory
 import org.apache.solr.core.CoreContainer
-import org.apache.solr.client.solrj.{StreamingResponseCallback, SolrQuery, SolrServer}
+import org.apache.solr.client.solrj.{SolrClient, StreamingResponseCallback, SolrQuery, SolrServer}
 import au.org.ala.biocache.dao.OccurrenceDAO
 import org.apache.solr.common.{SolrDocument, SolrInputDocument}
 import java.io.{FileWriter, OutputStream, File}
 import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer
-import org.apache.solr.client.solrj.impl.{ConcurrentUpdateSolrServer}
+import org.apache.solr.client.solrj.impl.{ConcurrentUpdateSolrClient, CloudSolrClient, ConcurrentUpdateSolrServer}
 import org.apache.solr.client.solrj.response.FacetField
 import org.apache.solr.common.params.{MapSolrParams, ModifiableSolrParams}
 import java.util.Date
@@ -43,10 +43,10 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
   } else {
     defaultMiscFields.split(",")
   }
-  
+
   var cc: CoreContainer = _
-  var solrServer: SolrServer = _
-  var cloudServer: org.apache.solr.client.solrj.impl.CloudSolrServer = _
+  var solrServer: SolrClient = _
+  var cloudServer: org.apache.solr.client.solrj.impl.CloudSolrClient = _
   var solrConfigPath: String = ""
 
   @Inject
@@ -56,7 +56,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
   val fieldSuffix = """([A-Za-z_\-0.9]*)"""
   val doublePattern = (fieldSuffix + """_d""").r
   val intPattern = (fieldSuffix + """_i""").r
-  
+
   val BATCH_SIZE = 1000
   val HARD_COMMIT_SIZE = 10000
   val INDEX_READ_PAGE_SIZE = 5000
@@ -71,7 +71,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
       if(!solrHome.startsWith("http://")){
         if(solrHome.contains(":")) {
           //assume that it represents a SolrCloud
-          cloudServer = new org.apache.solr.client.solrj.impl.CloudSolrServer(solrHome)
+          cloudServer = new CloudSolrClient(solrHome)
           cloudServer.setDefaultCollection("biocache1")
           solrServer = cloudServer
         } else if (solrConfigPath != "") {
@@ -86,7 +86,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
         }
       } else {
         logger.info("Initialising connection to SOLR server.....")
-        solrServer = new ConcurrentUpdateSolrServer(solrHome, BATCH_SIZE, Config.solrUpdateThreads)
+        solrServer = new ConcurrentUpdateSolrClient(solrHome, BATCH_SIZE, Config.solrUpdateThreads)
         logger.info("Initialising connection to SOLR server - done.")
       }
     }
@@ -199,7 +199,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
 
       if (sortField.isDefined) {
         val dir = sortDir.getOrElse("asc")
-        q.setSortField(sortField.get, if (dir == "asc") {
+        q.setSort(sortField.get, if (dir == "asc") {
           org.apache.solr.client.solrj.SolrQuery.ORDER.asc
         } else {
           org.apache.solr.client.solrj.SolrQuery.ORDER.desc
@@ -357,9 +357,9 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
 
     //val header = getHeaderValues()
     if (shouldIndex(map, startDate)) {
-      
+
       val values = getOccIndexModel(guid, map)
-      
+
       if (values.length > 0 && values.length != header.length) {
         logger.error("Values don't matcher header: " + values.length + ":" + header.length + ", values:header")
         logger.error("Headers: " + header.toString())
@@ -367,7 +367,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
         logger.error("This will be caused by changes in the list of headers not matching the number of submitted field values.")
         sys.exit(1)
       }
-      
+
       if (!values.isEmpty) {
 
         val doc = new SolrInputDocument()
@@ -569,7 +569,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
             }
 
           } else {
-            
+
             currentBatch.synchronized {
 
               if (!StringUtils.isEmpty(values(0))){
@@ -664,7 +664,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
 
     init
     val solrQuery = new SolrQuery();
-    solrQuery.setQueryType("standard");
+    solrQuery.setRequestHandler("standard");
     // Facets
     solrQuery.setFacet(true)
     solrQuery.addFacetField("row_key")
@@ -699,7 +699,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
 
     init
     val solrQuery = new SolrQuery();
-    solrQuery.setQueryType("standard");
+    solrQuery.setRequestHandler("standard");
     // Facets
     solrQuery.setFacet(true)
     solrQuery.addFacetField("row_key")
@@ -726,7 +726,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
   def getDistinctValues(query: String, field: String, max: Int): Option[List[String]] = {
     init
     val solrQuery = new SolrQuery();
-    solrQuery.setQueryType("standard");
+    solrQuery.setRequestHandler("standard");
     // Facets
     solrQuery.setFacet(true)
     solrQuery.addFacetField(field)
@@ -775,7 +775,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
     var continue = true
 
     val solrQuery = new SolrQuery()
-      .setQueryType("standard")
+      .setRequestHandler("standard")
       .setFacet(false)
       .setFields(field)
       .setQuery(query)
