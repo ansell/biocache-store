@@ -155,12 +155,12 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
-            <version>1.7.21</version>
+            <version>1.7.25</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.21</version>
+            <version>1.7.25</version>
         </dependency>
         <!-- for cmd tool -->
         <dependency>
@@ -617,6 +617,11 @@
                     <groupId>ch.qos.logback</groupId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+       		<groupId>au.org.ala.biocache</groupId>
+			<artifactId>biocache-store-api</artifactId>
+        	<version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
     <organization>

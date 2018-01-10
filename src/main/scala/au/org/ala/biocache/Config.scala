@@ -28,10 +28,14 @@ object Config {
   import collection.JavaConversions._
 
   protected val logger = LoggerFactory.getLogger("Config")
+
+  val storeConfig = au.org.ala.biocache.store.api.StoreConfig.getConfig()
+
   private val configModule = new ConfigModule()
   var inj:Injector = Guice.createInjector(configModule)
-  def getInstance(classs:Class[_]) = inj.getInstance(classs)
-
+//  def getInstance(classs:Class[_]) = injector.getInstance(classs)
+  def getInstance(classs:Class[_]) = storeConfig.getInstance(classs)
+//  def injector() = inj
   //persistence
   val persistenceManager = getInstance(classOf[PersistenceManager]).asInstanceOf[PersistenceManager]
 
