@@ -201,13 +201,13 @@ class MockPersistenceManager extends PersistenceManager {
 
   def shutdown = mockStore.clear
 
-  def pageOverLocal(entityName: String, proc: (String, Map[String, String]) => Boolean, threads: Int, columns:Array[String]): Int = {
+  def pageOverLocal(entityName: String, proc: (String, Map[String, String]) => Boolean, threads: Int, columns:Array[String]): Long = {
     throw new RuntimeException("Not implemented yet!!!")
   }
 
   def pageOverSelectArray(entityName: String, proc: ((String, DataRow) => Boolean),
     indexedField: String, indexedFieldValue: String, pageSize: Int, threads: Int,
-    localOnly: Boolean, columnName: String*) : Int = {
+    localOnly: Boolean, columnName: String*) : Long = {
     this.mockStore.get(entityName).get.foreach { case (rowkey,  data) =>
       proc( rowkey, new MockRow(data))
     }
@@ -225,7 +225,7 @@ class MockPersistenceManager extends PersistenceManager {
     * @param indexedFieldValue
     * @param threads
     */
-  override def pageOverIndexedField(entityName: String, proc: (String, Map[String, String]) => Boolean, indexedField: String, indexedFieldValue: String, threads: Int, localOnly: Boolean): Int = {
+  override def pageOverIndexedField(entityName: String, proc: (String, Map[String, String]) => Boolean, indexedField: String, indexedFieldValue: String, threads: Int, localOnly: Boolean): Long = {
     1
   }
 
@@ -239,7 +239,7 @@ class MockPersistenceManager extends PersistenceManager {
     * @param threads
     * @return
     */
-  override def pageOverLocal(entityName: String, proc: (String, Map[String, String], String) => Boolean, threads: Int, columns: Array[String]): Int = {
+  override def pageOverLocal(entityName: String, proc: (String, Map[String, String], String) => Boolean, threads: Int, columns: Array[String]): Long = {
     1
   }
 }

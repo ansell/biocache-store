@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.{JavaConversions, mutable}
 import scala.collection.mutable.ListBuffer
+import java.util.concurrent.atomic.AtomicLong
 
 /**
   * Cassandra 3 based implementation of a persistence manager.
@@ -87,14 +88,17 @@ class Cassandra3PersistenceManager  @Inject() (
 
         try {
           val preparedStatement = session.prepare(query)
-          synchronized {
-            if (Config.caseSensitiveCassandra) {
-              map.put(query, preparedStatement)
-            } else {
-              map.put(query.toLowerCase, preparedStatement)
-            }
+          val putIfAbsent = if (Config.caseSensitiveCassandra) {
+            map.putIfAbsent(query, preparedStatement)
+          } else {
+            map.putIfAbsent(query.toLowerCase, preparedStatement)
           }
-          result = preparedStatement
+          val result = if (putIfAbsent != null) {
+            putIfAbsent
+          } else {
+            preparedStatement
+          }
+          result
         } catch {
           case missing: com.datastax.driver.core.exceptions.InvalidQueryException if missing.getMessage().startsWith("Undefined column name") => {
             if (Config.createColumnCassandra) {
@@ -611,7 +615,7 @@ class Cassandra3PersistenceManager  @Inject() (
     *
     * @param columnName The names of the columns that need to be provided for processing by the proc
     */
-  def pageOverSelect(entityName: String, proc: ((String, Map[String, String]) => Boolean), pageSize: Int, threads: Int, columnName: String*): Int = {
+  def pageOverSelect(entityName: String, proc: ((String, Map[String, String]) => Boolean), pageSize: Int, threads: Int, columnName: String*): Long = {
 
     val columnsString = if(Config.caseSensitiveCassandra){
       "rowkey," + columnName.toArray.map {"\"" + _ + "\""}.mkString(",")
@@ -624,12 +628,12 @@ class Cassandra3PersistenceManager  @Inject() (
     val columns = Array(columnName: _*).mkString(",")
     val tokenRanges = getTokenRanges
     val es = MoreExecutors.getExitingExecutorService(Executors.newFixedThreadPool(threads).asInstanceOf[ThreadPoolExecutor])
-    val callables: util.List[Callable[Int]] = new util.ArrayList[Callable[Int]]
+    val callables: util.List[Callable[Long]] = new util.ArrayList[Callable[Long]]
 
     tokenRanges.foreach { tokenRange =>
 
-      val scanTask = new Callable[Int] {
-        def call(): Int = {
+      val scanTask = new Callable[Long] {
+        def call(): Long = {
           val startToken = tokenRange.getStart
           val endToken = tokenRange.getEnd
 
@@ -659,12 +663,14 @@ class Cassandra3PersistenceManager  @Inject() (
               }
             }
 
-            val currentTime = System.currentTimeMillis
-            val currentRowKey = row.getString(0)
-            val recordsPerSec = (counter.toFloat) / ((currentTime - start).toFloat / 1000f)
-            val timeInSec = (currentTime - start) / 1000
+            if (logger.isDebugEnabled()) {
+              val currentTime = System.currentTimeMillis
+              val currentRowKey = row.getString(0)
+              val recordsPerSec = (counter.toFloat) / ((currentTime - start).toFloat / 1000f)
+              val timeInSec = (currentTime - start) / 1000
 
-            logger.debug(s"$currentRowKey - records read: $counter.  Records per sec: $recordsPerSec,  Time taken: $timeInSec")
+              logger.debug(s"$currentRowKey - records read: $counter.  Records per sec: $recordsPerSec,  Time taken: $timeInSec")
+            }
 
             proc(rowkey, map.toMap)
           }
@@ -675,12 +681,12 @@ class Cassandra3PersistenceManager  @Inject() (
     }
 
     logger.info("Starting threads...number of callables " + callables.size())
-    val futures: util.List[Future[Int]] = es.invokeAll(callables)
+    val futures: util.List[Future[Long]] = es.invokeAll(callables)
     logger.info("All threads have completed paging")
 
-    var grandTotal: Int = 0
+    var grandTotal: Long = 0
     for (f <- futures) {
-      val count: Int = f.get.asInstanceOf[Int]
+      val count: Long = f.get.asInstanceOf[Long]
       grandTotal += count
     }
 
@@ -691,7 +697,7 @@ class Cassandra3PersistenceManager  @Inject() (
 
   def pageOverSelectArray(entityName: String, proc: ((String, DataRow) => Boolean),
                           indexedField: String, indexedFieldValue: String, pageSize: Int, threads: Int,
-                          localOnly: Boolean, columnName: String*): Int = {
+                          localOnly: Boolean, columnName: String*): Long = {
     pageOverLocalNotAsync(entityName, null, threads, columnName.toArray, null, indexedField, indexedFieldValue,
       localOnly, proc)
   }
@@ -738,7 +744,7 @@ class Cassandra3PersistenceManager  @Inject() (
                            indexedFieldValue: String = "",
                            threads: Int,
                            localOnly: Boolean
-                          ): Int = {
+                          ): Long = {
 
     val count = pageOverLocalNotAsync(entityName, (guid, map, tokenRange) => {
       proc(guid, map)
@@ -758,7 +764,7 @@ class Cassandra3PersistenceManager  @Inject() (
                             threads: Int, columns: Array[String] = Array(), rowKeyFile: File = null,
                             indexedField: String = "", indexedFieldValue: String = "",
                             localOnly: Boolean = true,
-                            procArray: ((String, DataRow) => Boolean) = null): Int = {
+                            procArray: ((String, DataRow) => Boolean) = null): Long = {
 
     val MAX_QUERY_RETRIES = 20
 
@@ -781,7 +787,7 @@ class Cassandra3PersistenceManager  @Inject() (
     logger.info(s"Starting at token range $startRange")
 
     val es = MoreExecutors.getExitingExecutorService(Executors.newFixedThreadPool(threads).asInstanceOf[ThreadPoolExecutor])
-    val callables: util.List[Callable[Int]] = new util.ArrayList[Callable[Int]]
+    val callables: util.List[Callable[Long]] = new util.ArrayList[Callable[Long]]
 
     val continuePaging = new AtomicBoolean(true)
 
@@ -789,7 +795,7 @@ class Cassandra3PersistenceManager  @Inject() (
     for (tokenRangeIdx <- startRange until tokenRanges.length) {
 
       if (!completedTokenRanges.contains(tokenRangeIdx.toString)) {
-        val scanTask = new Callable[Int] {
+        val scanTask = new Callable[Long] {
 
           def hasNextWithRetries(rows: Iterator[Row]): Boolean = {
 
@@ -849,7 +855,7 @@ class Cassandra3PersistenceManager  @Inject() (
             row
           }
 
-          def call(): Int = {
+          def call(): Long = {
 
             val columnsString = if (columns.nonEmpty) {
               if (columns.contains("rowkey")) mkString(columns)
@@ -871,7 +877,7 @@ class Cassandra3PersistenceManager  @Inject() (
 
             logger.debug("Starting token range from " + tokenRanges(tokenRangeIdx).getStart() + " to " + tokenRanges(tokenRangeIdx).getEnd())
 
-            var counter = 0
+            val counter = new AtomicLong(0)
             val tokenRangeToUse = tokenRanges(tokenRangeIdx)
 
             val tokenRangesSplits: Seq[TokenRange] = if (Config.cassandraTokenSplit != 1) {
@@ -953,11 +959,11 @@ class Cassandra3PersistenceManager  @Inject() (
                       }
                     }
 
-                    counter += 1
-                    if (counter % 10000 == 0) {
+                    var lastCounter = counter.incrementAndGet()
+                    if (lastCounter % 10000 == 0) {
                       val currentTime = System.currentTimeMillis()
                       val currentRowkey = row.getString(0)
-                      val recordsPerSec = (counter.toFloat) / ((currentTime - start).toFloat / 1000f)
+                      val recordsPerSec = (lastCounter.toFloat) / ((currentTime - start).toFloat / 1000f)
                       val totalTimeInSec = ((currentTime - start) / 1000)
                       if(logger.isDebugEnabled) {
                         logger.debug(s"[Token range : $tokenRangeIdx] records read: $counter " +
@@ -987,7 +993,7 @@ class Cassandra3PersistenceManager  @Inject() (
                 }
               }
             }
-            counter
+            counter.get()
           }
         }
         callables.add(scanTask)
@@ -997,13 +1003,13 @@ class Cassandra3PersistenceManager  @Inject() (
     }
 
     logger.info("Starting threads...number of callables " + callables.size())
-    val futures: util.List[Future[Int]] = es.invokeAll(callables)
+    val futures: util.List[Future[Long]] = es.invokeAll(callables)
     logger.info("All threads have completed paging")
 
-    var grandTotal: Int = 0
+    var grandTotal: Long = 0
     for (f <- futures) {
       try {
-        val count: Int = f.get
+        val count: Long = f.get
         grandTotal += count
       } catch {
         case e: Exception => logger.error("Exception thrown during paging: " + e.getMessage, e)
@@ -1021,7 +1027,7 @@ class Cassandra3PersistenceManager  @Inject() (
     * @param columns
     * @return
     */
-  def pageOverLocal(entityName: String, proc: (String, Map[String, String], String) => Boolean, threads: Int, columns: Array[String] = Array()): Int = {
+  def pageOverLocal(entityName: String, proc: (String, Map[String, String], String) => Boolean, threads: Int, columns: Array[String] = Array()): Long = {
     pageOverLocalNotAsync(entityName, proc, threads, columns)
   }
 
@@ -1154,6 +1160,7 @@ class Cassandra3PersistenceManager  @Inject() (
     // set futures max size relative to threads
     val threads = 8
     val futures = new LinkedBlockingQueue[ResultSetFuture](threads * 2)
+    // FIXME: This should be using a sentinel rather than a boolean state variable for the normal case
     val finished = new AtomicBoolean(false)
 
     //consumer
@@ -1199,8 +1206,11 @@ class Cassandra3PersistenceManager  @Inject() (
   }
 
   def shutdown = {
-    this.session.close()
-    this.cluster.close()
+    try {
+      this.session.close()
+    } finally {
+      this.cluster.close()
+    }
   }
 
   /**
@@ -1254,7 +1264,7 @@ class Cassandra3PersistenceManager  @Inject() (
     * @param indexField
     * @return
     */
-  def createSecondaryIndex(entityName: String, indexField: String, threads: Int): Int = {
+  def createSecondaryIndex(entityName: String, indexField: String, threads: Int): Long = {
 
     try {
       val stmt = new SimpleStatement("CREATE TABLE occ_uuid (rowkey varchar, value varchar, PRIMARY KEY (rowkey));")
@@ -1263,7 +1273,7 @@ class Cassandra3PersistenceManager  @Inject() (
       case e: com.datastax.driver.core.exceptions.AlreadyExistsException => logger.error("Index already exists...")
     }
 
-    var counter = 0
+    val counter = new AtomicLong(0)
     val start = System.currentTimeMillis()
     // create table
     pageOverLocal(entityName, (guid, map, tokenRangeIdx) => {
@@ -1272,17 +1282,17 @@ class Cassandra3PersistenceManager  @Inject() (
         case Some(uuid) => put(uuid, entityName + "_" + indexField, "value", guid, true, false)
         case None => logger.error(s"Record with guid: $guid missing $indexField value")
       }
-      counter += 1
-      if (counter % 10000 == 0) {
+      val lastCounter = counter.incrementAndGet()
+      if (lastCounter % 10000 == 0) {
         val currentTime = System.currentTimeMillis()
         logger.info("Records indexed: " + counter + ", records per sec: " +
-          (counter.toFloat) / ((currentTime - start).toFloat / 1000f) + "  Time taken: " +
+          (lastCounter.toFloat) / ((currentTime - start).toFloat / 1000f) + "  Time taken: " +
           ((currentTime - start) / 1000) + " seconds")
       }
       true
     }, threads, columns = Array("rowkey", indexField))
 
-    counter
+    counter.get()
   }
 }
 

@@ -48,7 +48,7 @@ trait OccurrenceDAO extends DAO {
 
   def pageOverRawProcessed(proc: (Option[(FullRecord, FullRecord)] => Boolean), dataResourceUid: String, pageSize: Int = 1000, threads: Int = 4): Unit
 
-  def pageOverRawProcessedLocal(proc: (Option[(FullRecord, FullRecord)] => Boolean), dataResourceUid: String, threads: Int = 4): Int
+  def pageOverRawProcessedLocal(proc: (Option[(FullRecord, FullRecord)] => Boolean), dataResourceUid: String, threads: Int = 4): Long
 
   def addRawOccurrence(fullRecord: FullRecord,removeNullFields:Boolean): Unit
 

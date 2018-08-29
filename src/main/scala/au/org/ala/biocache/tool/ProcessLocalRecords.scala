@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A tool for processing records that are local to a node.
@@ -87,9 +88,9 @@ class ProcessLocalRecords {
     logger.info("Number of taxa to process " + taxaIDList.size)
 
     val processor = new RecordProcessor
-    var count = 0
-    var matchedCount = 0
-    var lastMatched = ""
+    val count = new AtomicLong(0)
+    val matchedCount = new AtomicLong(0)
+    val lastMatched = new AtomicReference[String]()
 
     setCheckpoints(startTokenRangeIdx, checkpointFile)
 
@@ -99,15 +100,14 @@ class ProcessLocalRecords {
         val records = Config.occurrenceDAO.getAllVersionsByRowKey(rowkey)
         if (!records.isEmpty) {
           processor.processRecord(records.get(0), records.get(1))
-          synchronized {
-            matchedCount += 1
-            lastMatched = rowkey
-          }
+          matchedCount.incrementAndGet()
+          lastMatched.set(rowkey)
         }
       }
-      count += 1
-      if (count % 100000 == 0) {
-        logger.info(s"Total read : $count, total matched: $matchedCount, last matched $lastMatched")
+      val currentCount = count.incrementAndGet()
+      val currentMatchedCount = matchedCount.get()
+      if (currentCount % 100000 == 0) {
+        logger.info(s"Total read : $currentCount, total matched: $currentMatchedCount, last matched $rowkey")
       }
 
       true
@@ -126,12 +126,12 @@ class ProcessLocalRecords {
 
     val processor = new RecordProcessor
     val start = System.currentTimeMillis()
-    var lastLog = System.currentTimeMillis()
+    val lastLog = new AtomicLong(start)
 
     //note this update count isn't thread safe, so its inaccurate
     //its been left in to give a general idea of performance
-    var updateCount = new AtomicLong(0)
-    var readCount = new AtomicLong(0)
+    val updateCount = new AtomicLong(0)
+    val readCount = new AtomicLong(0)
 
     setCheckpoints(startTokenRangeIdx, checkpointFile)
 
@@ -141,9 +141,9 @@ class ProcessLocalRecords {
         if (!record.isEmpty) {
           val (raw, processed) = record.get
           val uuid = raw.rowKey
-          readCount.incrementAndGet()
+          val lastReadCount = readCount.incrementAndGet()
 
-          if ((drs.isEmpty || drs.contains(raw.attribution.dataResourceUid)) &&
+          val lastUpdateCount = if ((drs.isEmpty || drs.contains(raw.attribution.dataResourceUid)) &&
             !skipDrs.contains(raw.attribution.dataResourceUid)) {
             try {
               processor.processRecord(raw, processed, false, true)
@@ -151,21 +151,24 @@ class ProcessLocalRecords {
               case e:Exception => logger.error("Problem processing record with UUID:"  + uuid, e)
             }
             updateCount.incrementAndGet()
+          } else {
+            updateCount.get()
           }
 
-          if (updateCount.intValue() % 10000 == 0) {
+          if (lastUpdateCount % 10000 == 0) {
+            val lastLogTime = lastLog.get()
             val end = System.currentTimeMillis()
-            val timeInSecs = ((end - lastLog).toFloat / 1000f)
+            lastLog.set(end)
+            val timeInSecs = ((end - lastLogTime).toFloat / 1000f)
             val recordsPerSec = Math.round(10000f / timeInSecs)
-            logger.info(s"Record/sec:$recordsPerSec,  updated:$updateCount, read:$readCount,  Last rowkey: $uuid  Last 1000 in $timeInSecs")
-            lastLog = end
+            logger.info(s"Record/sec:$recordsPerSec,  updated:$lastUpdateCount, read:$lastReadCount,  Last rowkey: $uuid  Last 1000 in $timeInSecs")
 
             if(Config.jmxDebugEnabled){
               JMX.updateProcessingStats(
                 recordsPerSec,
                 timeInSecs,
-                updateCount.intValue(),
-                readCount.intValue()
+                lastUpdateCount,
+                lastReadCount
               )
 
               val processorTimings = processor.getProcessTimings

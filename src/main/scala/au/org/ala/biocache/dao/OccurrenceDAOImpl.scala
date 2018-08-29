@@ -467,7 +467,7 @@ class OccurrenceDAOImpl extends OccurrenceDAO {
     * @param threads
     * @return
     */
-  def pageOverRawProcessedLocal(proc: (Option[(FullRecord, FullRecord)] => Boolean), dataResourceUid: String, threads: Int = 4): Int = {
+  def pageOverRawProcessedLocal(proc: (Option[(FullRecord, FullRecord)] => Boolean), dataResourceUid: String, threads: Int = 4): Long = {
 
     if (StringUtils.isNotBlank(dataResourceUid)) {
       persistenceManager.pageOverIndexedField(entityName, (guid, map) => {

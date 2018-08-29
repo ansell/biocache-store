@@ -74,8 +74,8 @@ object JMX {
     */
   def updateProcessingStats(recordsPerSec: Float,
                              lastPageInSecs: Float,
-                             totalRecordsRead: Int,
-                             totalRecordsUpdated: Int
+                             totalRecordsRead: Long,
+                             totalRecordsUpdated: Long
                            ): Unit = {
     processingStatus.recordsPerSec = recordsPerSec
     processingStatus.lastPageInSecs = lastPageInSecs
@@ -198,8 +198,8 @@ class IndexStatus extends IndexStatusMBean {
 
 trait ProcessingStatusMBean {
 
-  def getRecordsUpdated: Int = 0
-  def getRecordsRead: Int = 0
+  def getRecordsUpdated: Long = 0
+  def getRecordsRead: Long = 0
   def getRecordsPerSec: Float = 0
   def getLastPageInSecs : Float = 0
 
@@ -245,8 +245,8 @@ trait ProcessingStatusMBean {
 
 class ProcessingStatus extends ProcessingStatusMBean {
 
-  var recordsUpdated: Int = 0
-  var recordsRead: Int = 0
+  var recordsUpdated: Long = 0
+  var recordsRead: Long = 0
   var recordsPerSec: Float = 0
   var lastPageInSecs: Float = 0
 
@@ -288,8 +288,8 @@ class ProcessingStatus extends ProcessingStatusMBean {
   var reProcessorChange : Long = 0
   var persistChange : Long = 0
 
-  override def getRecordsUpdated : Int = recordsUpdated
-  override def getRecordsRead : Int = recordsRead
+  override def getRecordsUpdated : Long = recordsUpdated
+  override def getRecordsRead : Long = recordsRead
   override def getRecordsPerSec : Float = recordsPerSec
   override def getLastPageInSecs : Float = lastPageInSecs
   override def getClassificationCacheSize:Int  = classificationCacheSize

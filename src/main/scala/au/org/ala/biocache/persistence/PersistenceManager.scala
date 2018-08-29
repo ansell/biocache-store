@@ -105,7 +105,7 @@ trait PersistenceManager {
     */
   def pageOverSelectArray(entityName: String, proc: ((String, DataRow) => Boolean),
                           indexedField: String, indexedFieldValue: String, pageSize: Int, threads: Int,
-                          localOnly: Boolean, columnName: String*): Int
+                          localOnly: Boolean, columnName: String*): Long
 
   /**
    * Page over all records using an indexed field
@@ -116,7 +116,7 @@ trait PersistenceManager {
    * @param indexedFieldValue
    * @param threads
    */
-  def pageOverIndexedField(entityName:String, proc:((String, Map[String, String]) => Boolean), indexedField:String="", indexedFieldValue:String = "", threads:Int = 1, localOnly:Boolean = true) : Int
+  def pageOverIndexedField(entityName:String, proc:((String, Map[String, String]) => Boolean), indexedField:String="", indexedFieldValue:String = "", threads:Int = 1, localOnly:Boolean = true) : Long
 
   /**
    * Page over the records that are local to this node.
@@ -125,12 +125,12 @@ trait PersistenceManager {
    * @param threads
    * @return
    */
-  def pageOverLocal(entityName:String, proc:((String, Map[String, String], String) => Boolean), threads:Int, columns:Array[String]) : Int
+  def pageOverLocal(entityName:String, proc:((String, Map[String, String], String) => Boolean), threads:Int, columns:Array[String]) : Long
 
   /**
    * Page over the records, retrieving the supplied columns only.
    */
-  def pageOverSelect(entityName:String, proc:((String, Map[String,String])=>Boolean), pageSize:Int, threads:Int, columnName:String*) : Int
+  def pageOverSelect(entityName:String, proc:((String, Map[String,String])=>Boolean), pageSize:Int, threads:Int, columnName:String*) : Long
 
   /**
    * Page over the records, retrieving the supplied columns range.
@@ -187,7 +187,7 @@ trait PersistenceManager {
     * @param threads
     * @return
     */
-  def createSecondaryIndex(entityName:String, indexFieldName:String, threads:Int) : Int
+  def createSecondaryIndex(entityName:String, indexFieldName:String, threads:Int) : Long
 }
 
 
