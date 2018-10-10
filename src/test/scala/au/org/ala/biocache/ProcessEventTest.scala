@@ -45,6 +45,34 @@ class ProcessEventTest extends ConfigFunSuite {
     expectResult(null){ processed.event.eventDateEnd }
   }
 
+  test("yyyy-dd-mmThh:MM:ss.sss correctly sets year, month, day values in process object") {
+
+    val raw = new FullRecord("1234")
+    raw.event.eventDate = "2013-11-06T19:59:14.961"
+    val processed = raw.clone
+    (new EventProcessor).process("1234", raw, processed)
+
+    expectResult("2013-11-06T19:59:14.961"){ processed.event.eventDate }
+    expectResult("06"){ processed.event.day }
+    expectResult("11"){ processed.event.month }
+    expectResult("2013"){ processed.event.year }
+    expectResult(null){ processed.event.eventDateEnd }
+  }
+
+  test("yyyy-dd-mmThh:MM+hh:MM correctly sets year, month, day values in process object") {
+
+    val raw = new FullRecord("1234")
+    raw.event.eventDate = "2018-09-19T08:50+1000"
+    val processed = raw.clone
+    (new EventProcessor).process("1234", raw, processed)
+
+    expectResult("2018-09-19T08:50+1000"){ processed.event.eventDate }
+    expectResult("19"){ processed.event.day }
+    expectResult("09"){ processed.event.month }
+    expectResult("2018"){ processed.event.year }
+    expectResult(null){ processed.event.eventDateEnd }
+  }
+
   test("yyyy-dd-mm verbatim date correctly sets year, month, day values in process object") {
 
     val raw = new FullRecord("1234")
