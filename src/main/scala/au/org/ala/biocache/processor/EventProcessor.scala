@@ -10,6 +10,8 @@ import org.apache.commons.lang.time.{DateFormatUtils, DateUtils}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
   * Processor for event (date) information.
@@ -56,7 +58,7 @@ class EventProcessor extends Processor {
 //      return assertions.toArray
     }
 
-    var date: Option[java.util.Date] = None
+    var date: Option[LocalDate] = None
     val currentYear = DateUtil.getCurrentYear
     var comment = ""
     var addPassedInvalidCollectionDate = true
@@ -120,7 +122,7 @@ class EventProcessor extends Processor {
         )
         //don't allow the calendar to be lenient we want exceptions with incorrect dates
         calendar.setLenient(false)
-        date = Some(calendar.getTime)
+        date = Some(calendar.toZonedDateTime().toLocalDate())
         dateComplete = true
       } catch {
         case e: Exception => {
@@ -137,7 +139,8 @@ class EventProcessor extends Processor {
     if (validMonth) processed.event.month = String.format("%02d", int2Integer(month)) //NC ensure that a month is 2 characters long
     if (validDay) processed.event.day = day.toString
     if (!date.isEmpty) {
-      processed.event.eventDate = DateFormatUtils.format(date.get, "yyyy-MM-dd")
+      processed.event.eventDate = date.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+//      processed.event.eventDate = DateFormatUtils.format(date.get, "yyyy-MM-dd")
     }
 
     //deal with event date if we don't have separate day, month, year fields
@@ -266,7 +269,7 @@ class EventProcessor extends Processor {
     }
 
     //check for future date
-    if (!date.isEmpty && date.get.after(new Date())) {
+    if (!date.isEmpty && date.get.isAfter(LocalDate.now())) {
       assertions += QualityAssertion(INVALID_COLLECTION_DATE, "Future date supplied")
       addPassedInvalidCollectionDate = false
     }
@@ -523,20 +526,21 @@ class EventProcessor extends Processor {
 
       if (startDate.get.singleDate && startDate.get.parsedStartDate != null) {
         try {
-          processed.event.eventDate = DateFormatUtils.format(startDate.get.parsedStartDate, format)
+          processed.event.eventDate = DateParser.newDateFormat(format).format(startDate.get.parsedStartDate)
+//          processed.event.eventDate = DateFormatUtils.format(startDate.get.parsedStartDate, format)
         } catch {
-          case e: Exception => logger.error("Problem reformatting date to new precision")
+          case e: Exception => logger.error("Problem reformatting start date to new precision: " + startDate.get.parsedStartDate)
         }
       }
     }
 
     if(!endDate.isEmpty) {
-
       if (endDate.get.singleDate && endDate.get.parsedStartDate != null) {
         try {
-          processed.event.eventDateEnd = DateFormatUtils.format(endDate.get.parsedStartDate, format)
+          processed.event.eventDateEnd = DateParser.newDateFormat(format).format(endDate.get.parsedStartDate)
+//          processed.event.eventDateEnd = DateFormatUtils.format(endDate.get.parsedStartDate, format)
         } catch {
-          case e: Exception => logger.error("Problem reformatting date to new precision")
+          case e: Exception => logger.error("Problem reformatting end date to new precision: " + endDate.get.parsedStartDate)
         }
       }
     }
