@@ -8,6 +8,14 @@ import java.util.Date
 import java.text.ParseException
 import scala.Predef._
 import au.org.ala.biocache.util.DateUtil
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAccessor
+import java.time.LocalDateTime
+import java.time.ZonedDateTime
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatterBuilder
+import java.util.Locale
 
 /**
  * Date parser that uses scala extractors to handle the different formats.
@@ -16,6 +24,24 @@ object DateParser {
 
   final val logger: Logger = LoggerFactory.getLogger("DateParser")
 
+  def dateMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
+    try {
+      inputFormat.parse(dateValue)
+      true
+    } catch {
+      case _:Exception => false
+    }
+    false
+  }
+  
+  def newDateFormat(formatPattern: String): DateTimeFormatter = {
+    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(formatPattern).toFormatter(Locale.US)
+  }
+  
+  val YEAR = newDateFormat("yyyy")
+  val MONTH = newDateFormat("MM")
+  val DAY = newDateFormat("dd")
+  
   /**
     * Parse the supplied date string into an event date. This method catches errors and will return a None
     * if the string is unparseable.
@@ -161,8 +187,8 @@ object DateParser {
   }
 }
 
-case class EventDate(parsedStartDate: Date, startDate: String, startDay: String, startMonth: String, startYear: String,
-                     parsedEndDate: Date, endDate: String, endDay: String, endMonth: String, endYear: String, singleDate: Boolean)
+case class EventDate(parsedStartDate: LocalDate, startDate: String, startDay: String, startMonth: String, startYear: String,
+                     parsedEndDate: LocalDate, endDate: String, endDay: String, endMonth: String, endYear: String, singleDate: Boolean)
 
 /** Extractor for the format yyyy-MM-dd */
 object NonISODateTime {
@@ -244,37 +270,78 @@ class SingleDate {
 //  2001-03-14T00:00:00+11:00
   def formats = baseFormats.map(f => Array(f, f + "'Z'", f + "'T'hh:mm'Z'",f + "'T'HH:mm'Z'", f + "'T'hh:mm:ss",f + "'T'HH:mm:ss", f + "'T'hh:mm:ss'Z'", f + "'T'HH:mm:ss'Z'",f + " hh:mm:ss",f + " HH:mm:ss")).flatten
 
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+  
   /**
    * Extraction method
    */
   def unapply(str: String): Option[EventDate] = {
     try {
+        //new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(formatPattern).toFormatter(Locale.US)
+				// try {
+        //   format.parse(dateValue); 
+        //  return true; 
+        // } catch(e) { 
+        // } return false; };
+        //return parseClass.parse(dateValue, inputFormat).format(outputFormat); }; \n");
+				
       //  2001-03-14T00:00:00+11:00
       //bug in commons lang - http://stackoverflow.com/questions/424522/how-can-i-recognize-the-zulu-time-zone-in-java-dateutils-parsedate
-      var strWithoutTime = str.replaceFirst("[+|-][0-2][0-9]:[0-5][0-9]","")
-      if (strWithoutTime == str) {
+      //var strWithoutTime = str.replaceFirst("[+|-][0-2][0-9]:[0-5][0-9]","")
+      //if (strWithoutTime == str) {
         //date[+|-]hh or date[+|-]hhmm are also valid time modifiers, but get confused with basic dates like '2008-01-05' or '23-01-2008'
-        strWithoutTime = str.replaceFirst("[+][0-2][0-9][0-5][0-9]","") //first get rid of the easy '+' ones
-        strWithoutTime = str.replaceFirst("[+][0-2][0-9]","")
-        if (strWithoutTime == str) {
-          if (str.split("-").length > 3) {
-            val strRev = str.reverse
-            var strWithoutTimeRev = strRev.replaceFirst("[0-9][0-5][0-9][0-2][-]","") //note pattern reversed
-            strWithoutTimeRev = strRev.replaceFirst("[0-9][0-2][-]","")
-            strWithoutTime = strWithoutTimeRev.reverse
-          }
+        //strWithoutTime = str.replaceFirst("[+][0-2][0-9][0-5][0-9]","") //first get rid of the easy '+' ones
+        //strWithoutTime = str.replaceFirst("[+][0-2][0-9]","")
+        //if (strWithoutTime == str) {
+          //if (str.split("-").length > 3) {
+            //val strRev = str.reverse
+            //var strWithoutTimeRev = strRev.replaceFirst("[0-9][0-5][0-9][0-2][-]","") //note pattern reversed
+            //strWithoutTimeRev = strRev.replaceFirst("[0-9][0-2][-]","")
+            //strWithoutTime = strWithoutTimeRev.reverse
+          //}
+        //}
+      //}
+      // Parse everything down to a LocalDate if possible
+      val eventDateParsed: Option[LocalDate] = if (DateParser.dateMatches(str, DateTimeFormatter.ISO_LOCAL_DATE)) {
+        Some(LocalDate.parse(str, DateTimeFormatter.ISO_LOCAL_DATE))
+      } else if (DateParser.dateMatches(str, DateTimeFormatter.ISO_LOCAL_DATE_TIME)) {
+        Some(LocalDateTime.parse(str, DateTimeFormatter.ISO_LOCAL_DATE_TIME).toLocalDate())
+      } else if (DateParser.dateMatches(str, DateTimeFormatter.ISO_DATE)) {
+        Some(LocalDate.parse(str, DateTimeFormatter.ISO_DATE))
+      } else if (DateParser.dateMatches(str, DateTimeFormatter.ISO_OFFSET_DATE)) {
+        Some(LocalDate.parse(str, DateTimeFormatter.ISO_OFFSET_DATE))
+      } else if (DateParser.dateMatches(str, DateTimeFormatter.ISO_OFFSET_DATE_TIME)) {
+        Some(ZonedDateTime.parse(str, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDate())
+      } else if (DateParser.dateMatches(str, DateTimeFormatter.ISO_ZONED_DATE_TIME)) {
+        Some(ZonedDateTime.parse(str, DateTimeFormatter.ISO_ZONED_DATE_TIME).toLocalDate())
+      } else {
+        val matchedFormat = parsedFormats.find(nextFormatter => DateParser.dateMatches(str, nextFormatter))
+        if(matchedFormat.isDefined) {
+          // TODO:
         }
+        None
       }
-      val eventDateParsed = DateUtils.parseDateStrictly(strWithoutTime,formats)
-      val startYear, endYear = DateFormatUtils.format(eventDateParsed, "yyyy")
-      val startDate, endDate = DateFormatUtils.format(eventDateParsed, "yyyy-MM-dd")
-      val startDay, endDay = DateFormatUtils.format(eventDateParsed, "dd")
-      val startMonth, endMonth = DateFormatUtils.format(eventDateParsed, "MM")
-      Some(EventDate(eventDateParsed, startDate, startDay, startMonth, startYear, eventDateParsed, endDate, endDay,
-        endMonth: String, endYear, true))
+      
+      if (eventDateParsed.isDefined) {
+        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        //val eventDateParsed = DateUtils.parseDateStrictly(strWithoutTime,formats)
+        //val startYear, endYear = DateFormatUtils.format(eventDateParsed, "yyyy")
+        //val startDate, endDate = DateFormatUtils.format(eventDateParsed, "yyyy-MM-dd")
+        //val startDay, endDay = DateFormatUtils.format(eventDateParsed, "dd")
+        //val startMonth, endMonth = DateFormatUtils.format(eventDateParsed, "MM")
+        val startDate = eventDateSerialised
+        val endDate = eventDateSerialised
+        val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
+        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
+        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+
+        Some(EventDate(eventDateParsed.get, startDate, startDay, startMonth, startYear, eventDateParsed.get, endDate, endDay,
+          endMonth: String, endYear, true))
+      }
     } catch {
       case e: ParseException => None
     }
+    None
   }
 }
 
