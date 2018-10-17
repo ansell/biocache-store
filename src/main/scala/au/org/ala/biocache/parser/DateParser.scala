@@ -198,27 +198,29 @@ object DateParser {
   def parseByFormat(str: String, parsedFormats: Array[DateTimeFormatter]): Option[LocalDate] = {
     val matchedFormat = parsedFormats.find(nextFormatter => DateParser.dateMatches(str, nextFormatter))
     if(matchedFormat.isDefined) {
-      val nextParsedDate = matchedFormat.get.parse(str)
+      val nextParsedDate = LocalDate.parse(str, matchedFormat.get)
+      Some(nextParsedDate)
+      //val nextParsedDate = matchedFormat.get.parse(str)
       // The parse result needs to be Temporal to use it further
       // FIXME: The following isn't working
-      if (nextParsedDate.isInstanceOf[Temporal]) {
-        val nextTemporal = nextParsedDate.asInstanceOf[Temporal]
-        var nextYear = 0
-        var nextMonth = 0
-        var nextDayOfMonth = 0
-        if(nextTemporal.isSupported(ChronoField.DAY_OF_MONTH)) {
-          nextDayOfMonth = nextTemporal.get(ChronoField.DAY_OF_MONTH)
-        }
-        if(nextTemporal.isSupported(ChronoField.MONTH_OF_YEAR)) {
-          nextMonth = nextTemporal.get(ChronoField.MONTH_OF_YEAR)
-        }
-        if(nextTemporal.isSupported(ChronoField.YEAR)) {
-          nextYear = nextTemporal.get(ChronoField.YEAR)
-        }
-        Some(LocalDate.of(nextYear, nextMonth, nextDayOfMonth))
-      } else {
-        None
-      }
+      //if (nextParsedDate.isInstanceOf[Temporal]) {
+//        val nextTemporal = nextParsedDate.asInstanceOf[Temporal]
+//        var nextYear = 0
+//        var nextMonth = 0
+//        var nextDayOfMonth = 0
+//        if(nextTemporal.isSupported(ChronoField.DAY_OF_MONTH)) {
+//          nextDayOfMonth = nextTemporal.get(ChronoField.DAY_OF_MONTH)
+//        }
+//        if(nextTemporal.isSupported(ChronoField.MONTH_OF_YEAR)) {
+//          nextMonth = nextTemporal.get(ChronoField.MONTH_OF_YEAR)
+//        }
+//        if(nextTemporal.isSupported(ChronoField.YEAR)) {
+//          nextYear = nextTemporal.get(ChronoField.YEAR)
+//        }
+//        Some(LocalDate.of(nextYear, nextMonth, nextDayOfMonth))
+//      } else {
+//        None
+//      }
     } else {
       None
     }
@@ -347,11 +349,12 @@ object ISOSingleYear {
 
         Some(EventDate(eventDateParsed.get, startDate, startDay, startMonth, startYear, eventDateParsed.get, endDate, endDay,
           endMonth: String, endYear, false))
+      } else {
+        None
       }
     } catch {
       case e: DateTimeParseException => None
     }
-    None
   }
 }
 
