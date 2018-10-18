@@ -25,6 +25,7 @@ import au.org.ala.biocache.Config
 import com.google.common.cache.CacheBuilder
 import java.util.concurrent.Callable
 import java.time.OffsetDateTime
+import java.time.format.ResolverStyle
 
 /**
  * Date parser that uses scala extractors to handle the different formats.
@@ -65,7 +66,7 @@ object DateParser {
           builder = builder.parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
         }
         
-        builder.toFormatter(Locale.US)
+        builder.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
       }
     })
   }
@@ -105,7 +106,7 @@ object DateParser {
           builder = builder.parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
         }
         
-        builder.toFormatter(Locale.US)
+        builder.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
       }
     })
   }
@@ -152,7 +153,7 @@ object DateParser {
     result.appendPattern("M-d")
     // Need to provide a default for the year or a LocalDate won't be created
     result = result.parseDefaulting(ChronoField.YEAR, 1)
-    result.toFormatter(Locale.US)
+    result.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
   }
   val OFFSET_DATE_OPTIONAL_TIME = { 
     var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
@@ -160,7 +161,7 @@ object DateParser {
     result = result.appendLiteral('T')
     result = appendTimeParsing(result, true)
     result = appendOffsetParsing(result)
-    result.toFormatter(Locale.US)
+    result.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
   }
   val NON_ISO_OFFSET_DATE_OPTIONAL_TIME = { 
     var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
@@ -169,7 +170,7 @@ object DateParser {
     result = result.optionalStart().appendLiteral(' ').optionalEnd()
     result = appendTimeParsing(result, true)
     result = appendOffsetParsing(result)
-    result.toFormatter(Locale.US)
+    result.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
   }
   
   /**
