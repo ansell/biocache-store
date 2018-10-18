@@ -613,7 +613,8 @@ class DateRange {
       val parts = ParseUtil.splitRange(str)
       if (parts.length != 2) return None
       val startDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(0), parsedFormats)
-      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats)
+      // Additionally support two digit years for the end date
+      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats ++ Array(DateParser.newTwoDigitYearDateFormat("", "", 1920, true, true, true)))
 
       if (startDateParsed.isDefined) {
         val startDateSerialised = startDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -730,7 +731,8 @@ object ISODateTimeRange {
       val parts = ParseUtil.splitRange(str)
       if (parts.length != 2) return None
       val startDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(0), parsedFormats)
-      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats)
+      // Additionally support two digit years for the end date
+      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats ++ Array(DateParser.newTwoDigitYearDateFormat("", "", 1920, true, true, true)))
 
       if (startDateParsed.isDefined) {
         val startDateSerialised = startDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -901,15 +903,14 @@ object ISOVerboseDateTimeRange {
 //  }
 //}
 
-/** Extractor for the format uuuu/uuuu and uuuu/uu and uuuu/y */
+///** Extractor for the format uuuu/uuuu and uuuu/uu and uuuu/y */
 //object ISOYearRange {
 //
 //  def unapply(str: String): Option[EventDate] = {
 //    try {
 //      val parts = ParseUtil.splitRange(str)
 //      if (parts.length != 2) return None
-//      val startDateParsed = DateUtils.parseDateStrictly(parts(0),
-//        Array("uuuu", "uuuu-00-00"))
+//      val startDateParsed = DateParser.YEAR_TO_LOCAL_DATE
 //      val startDate, endDate = ""
 //      val startDay, endDay = ""
 //      val startMonth, endMonth = ""
