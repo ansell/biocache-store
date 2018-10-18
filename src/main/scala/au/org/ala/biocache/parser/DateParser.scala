@@ -21,6 +21,9 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.ChronoField
 import java.time.Duration
 import java.time.format.DateTimeParseException
+import au.org.ala.biocache.Config
+import com.google.common.cache.CacheBuilder
+import java.util.concurrent.Callable
 
 /**
  * Date parser that uses scala extractors to handle the different formats.
@@ -29,6 +32,9 @@ object DateParser {
 
   final val logger: Logger = LoggerFactory.getLogger("DateParser")
 
+  // TODO: Replace with Config.dateFormatCacheSize when finished testing
+  val dateFormatCache = CacheBuilder.newBuilder().maximumSize(10000).build[Tuple3[String, Boolean, Boolean], DateTimeFormatter]()
+  
   def dateMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
     try {
       inputFormat.parse(dateValue)
@@ -38,15 +44,65 @@ object DateParser {
     }
   }
   
-  def newDateFormat(formatPattern: String): DateTimeFormatter = {
-    new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(formatPattern).toFormatter(Locale.US)
+  def newDateFormat(formatPattern: String, defaultMonth: Boolean = false, defaultDay: Boolean = false): DateTimeFormatter = {
+    
+    val cacheKey = (formatPattern, defaultMonth, defaultDay)
+    
+    dateFormatCache.get(cacheKey, new Callable[DateTimeFormatter]() {
+      def call(): DateTimeFormatter = {
+        var builder = new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(formatPattern)
+        
+        if (defaultMonth) {
+          builder = builder.parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+        }
+        
+        if (defaultDay) {
+          builder = builder.parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+        }
+        
+        builder.toFormatter(Locale.US)
+      }
+    })
   }
   
-  val YEAR_TO_LOCAL_DATE = new DateTimeFormatterBuilder()
-     .appendPattern("yyyy")
-     .parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
-     .parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
-     .toFormatter();
+  def newTwoDigitYearDateFormat(formatPatternStart: String, formatPatternEnd: String, twoDigitYearCutoff: Int = 1920, defaultMonth: Boolean = false, defaultDay: Boolean = false): DateTimeFormatter = {
+    
+    val cacheKey = (formatPatternStart + "[uuuu][uu]" + formatPatternEnd, defaultMonth, defaultDay)
+    dateFormatCache.get(cacheKey, new Callable[DateTimeFormatter]() {
+      def call(): DateTimeFormatter = {
+        var builder = new DateTimeFormatterBuilder()
+        
+        if(!formatPatternStart.isEmpty()) {
+          builder = builder.appendPattern(formatPatternStart)
+        }
+        
+        // Transparently allow for two and four digit years, with a customisable cutoff year
+        builder = builder.optionalStart()
+            .appendPattern("uuuu")
+            .optionalEnd()
+            .optionalStart()
+            .appendValueReduced(ChronoField.YEAR, 2, 2, twoDigitYearCutoff)
+            .optionalEnd()
+            
+        if (!formatPatternEnd.isEmpty()) {
+          builder = builder.appendPattern(formatPatternEnd)
+        }
+            
+        if (defaultMonth) {
+          builder = builder.parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+        }
+        
+        if (defaultDay) {
+          builder = builder.parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+        }
+        
+        builder.toFormatter(Locale.US)
+      }
+    })
+  }
+  
+  val YEAR_TO_LOCAL_DATE = newDateFormat("yyyy", true, true)
+  val YEAR_MONTH_TO_LOCAL_DATE = newDateFormat("yyyy-MM", false, true)
   val YEAR = newDateFormat("yyyy")
   val MONTH = newDateFormat("MM")
   val DAY = newDateFormat("dd")
@@ -132,13 +188,13 @@ object DateParser {
 
     date match {
       case ISOSingleYear(date) => Some(date)
+      case ISOMonthDate(date) => Some(date)
       case ISOSingleDate(date) => Some(date)
       case ISOWithMonthNameDate(date) => Some(date)
       case ISODateRange(date) => Some(date)
 //      case ISODayDateRange(date) => Some(date)
 //      case ISODayMonthRange(date)=>Some(date)
       case ISODateTimeRange(date) => Some(date)
-//      case ISOMonthDate(date) => Some(date)
 //      case ISOMonthDateRange(date) => Some(date)
 //      case ISOMonthYearDateRange(date) => Some(date)
 //      case ISOYearRange(date) => Some(date)
@@ -200,27 +256,6 @@ object DateParser {
     if(matchedFormat.isDefined) {
       val nextParsedDate = LocalDate.parse(str, matchedFormat.get)
       Some(nextParsedDate)
-      //val nextParsedDate = matchedFormat.get.parse(str)
-      // The parse result needs to be Temporal to use it further
-      // FIXME: The following isn't working
-      //if (nextParsedDate.isInstanceOf[Temporal]) {
-//        val nextTemporal = nextParsedDate.asInstanceOf[Temporal]
-//        var nextYear = 0
-//        var nextMonth = 0
-//        var nextDayOfMonth = 0
-//        if(nextTemporal.isSupported(ChronoField.DAY_OF_MONTH)) {
-//          nextDayOfMonth = nextTemporal.get(ChronoField.DAY_OF_MONTH)
-//        }
-//        if(nextTemporal.isSupported(ChronoField.MONTH_OF_YEAR)) {
-//          nextMonth = nextTemporal.get(ChronoField.MONTH_OF_YEAR)
-//        }
-//        if(nextTemporal.isSupported(ChronoField.YEAR)) {
-//          nextYear = nextTemporal.get(ChronoField.YEAR)
-//        }
-//        Some(LocalDate.of(nextYear, nextMonth, nextDayOfMonth))
-//      } else {
-//        None
-//      }
     } else {
       None
     }
@@ -246,8 +281,10 @@ object DateParser {
       Some(ZonedDateTime.parse(str, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDate())
     } else if (DateParser.dateMatches(str, DateTimeFormatter.ISO_ZONED_DATE_TIME)) {
       Some(ZonedDateTime.parse(str, DateTimeFormatter.ISO_ZONED_DATE_TIME).toLocalDate())
-    } else if (DateParser.dateMatches(str, DateParser.YEAR_TO_LOCAL_DATE)) {
-      Some(LocalDate.parse(str, DateParser.YEAR_TO_LOCAL_DATE))
+//    } else if (DateParser.dateMatches(str, DateParser.YEAR_TO_LOCAL_DATE)) {
+//      Some(LocalDate.parse(str, DateParser.YEAR_TO_LOCAL_DATE))
+//    } else if (DateParser.dateMatches(str, DateParser.YEAR_MONTH_TO_LOCAL_DATE)) {
+//      Some(LocalDate.parse(str, DateParser.YEAR_MONTH_TO_LOCAL_DATE))
     } else {
       DateParser.parseByFormat(str, parsedFormats)
     }
@@ -291,10 +328,10 @@ object NonISODateTime {
   }
 }
 
-/** Extractor for the format yyyy-MM-dd */
+/** Extractor for the format yyyy-MMMM-dd */
 object ISOWithMonthNameDate {
 
-  def formats = Array("yyyy-MMMMM-dd", "yyyy-MMMMM-dd'T'hh:mm-ss", "yyyy-MMMMM-dd'T'HH:mm-ss", "yyyy-MMMMM-dd'T'hh:mm'Z'", "yyyy-MMMMM-dd'T'HH:mm'Z'")
+  def formats = Array("yyyy-MMMM-dd", "yyyy-MMMM-dd'T'hh:mm-ss", "yyyy-MMMM-dd'T'HH:mm-ss", "yyyy-MMMM-dd'T'hh:mm'Z'", "yyyy-MMMM-dd'T'HH:mm'Z'")
 
   def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
   /**
@@ -323,14 +360,14 @@ object ISOWithMonthNameDate {
   }
 }
 
-/** Extractor for the format yyyy-MM-dd */
+/** Extractor for the format yyyy */
 object ISOSingleYear {
 
-  def baseFormats = Array()
+  def baseFormats = Array("yyyy")
   
   def formats = baseFormats
 
-  def parsedFormats = Array(DateParser.YEAR_TO_LOCAL_DATE)
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f, true, true))
   
   /**
    * Extraction method
@@ -404,8 +441,41 @@ trait NonISODateRange extends DateRange {
   override def baseFormats = Array("dd-MM-yyyy","dd/MM/yyyy","dd-MMM-yyyy","dd/MMM/yyyy","dd MMM yyyy")
 }
 
-trait NonISOTruncatedYear extends SingleDate {
-  override def baseFormats = Array("dd-MM-yy","dd/MM/yy")
+object NonISOTruncatedYearDate {
+  def baseFormats = Array(("dd-MM-", ""), ("dd/MM/", ""))
+
+//  2001-03-14T00:00:00+11:00
+  def formats = baseFormats.map(f => Array(f, (f._1, f._2 + "'Z'"), (f._1, f._2 + "'T'hh:mm'Z'"), (f._1, f._2 + "'T'HH:mm'Z'"), (f._1, f._2 + "'T'hh:mm:ss"), (f._1, f._2 + "'T'HH:mm:ss"), (f._1, f._2 + "'T'hh:mm:ss'Z'"), (f._1, f._2 + "'T'HH:mm:ss'Z'"), (f._1, f._2 + " hh:mm:ss"), (f._1, f._2 + " HH:mm:ss"))).flatten
+
+  def parsedFormats = formats.map(f => DateParser.newTwoDigitYearDateFormat(f._1, f._2))
+  
+  /**
+   * Extraction method
+   */
+  def unapply(str: String): Option[EventDate] = {
+    try {
+      // Parse everything down to a LocalDate if possible
+      // Checks the ISO date formats before checking the custom formats
+      val eventDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(str, parsedFormats)
+      
+      if (eventDateParsed.isDefined) {
+        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = eventDateSerialised
+        val endDate = eventDateSerialised
+        val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
+        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
+        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+
+        Some(EventDate(eventDateParsed.get, startDate, startDay, startMonth, startYear, eventDateParsed.get, endDate, endDay,
+          endMonth: String, endYear, true))
+      } else {
+        None
+      }
+    } catch {
+      case e: Exception => None
+    }
+  }
+
 }
 
 object ISOSingleDate extends SingleDate
@@ -414,16 +484,16 @@ object NonISOSingleDate extends NonISOSingleDate
 
 object NonISODateRange extends NonISODateRange
 
-object NonISOTruncatedYearDate extends SingleDate with NonISOTruncatedYear
+//object NonISOTruncatedYearDate extends SingleDate with NonISOTruncatedYear
 
-/** Extractor for the format yyyy-MM-dd */
+/** Extractor for the format yyyy-MM */
 object ISOMonthDate {
 
   def baseFormats = Array("yyyy-MM", "yyyy-MM-", "MM yyyy", "MMM-yyyy", "yyyy-MM-00")
   
   def formats = baseFormats
   
-  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f, false, true))
 
   /**
    * Extraction method
@@ -440,6 +510,7 @@ object ISOMonthDate {
         val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
         val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
 
+        // NOTE: singleDate is set to "true" here because it is really a flag for whether only the year has been specified
         Some(EventDate(eventDateParsed.get, startDate, startDay, startMonth, startYear, eventDateParsed.get, endDate, endDay,
           endMonth: String, endYear, true))
       } else {
