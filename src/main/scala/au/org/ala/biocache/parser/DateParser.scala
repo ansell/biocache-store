@@ -155,6 +155,15 @@ object DateParser {
     result = appendOffsetParsing(result)
     result.toFormatter(Locale.US)
   }
+  val NON_ISO_OFFSET_DATE_OPTIONAL_TIME = { 
+    var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
+    result = appendDateParsing(result, false)
+    // Alternative that uses an optional space character instead of the standard ISO "T" character
+    result = result.optionalStart().appendLiteral(' ').optionalEnd()
+    result = appendTimeParsing(result, true)
+    result = appendOffsetParsing(result)
+    result.toFormatter(Locale.US)
+  }
   
   /**
     * Parse the supplied date string into an event date. This method catches errors and will return a None
@@ -596,7 +605,7 @@ class DateRange {
 
   def formats = baseFormats
   
-  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f)) ++ Array(DateParser.OFFSET_DATE_OPTIONAL_TIME, DateParser.YEAR_MONTH_TO_LOCAL_DATE, DateParser.YEAR_TO_LOCAL_DATE, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)
   
   def unapply(str: String): Option[EventDate] = {
     try {
@@ -621,12 +630,12 @@ class DateRange {
           endMonth = endDateParsed.get.format(DateParser.MONTH)
           endDay = endDateParsed.get.format(DateParser.DAY)
           endDate = LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), Integer.parseInt(endDay)).format(DateTimeFormatter.ISO_LOCAL_DATE)
+          Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateParsed.get, endDate, endDay,
+            endMonth: String, endYear, startDate.equals(endDate)))
         } else {
           // If the end date didn't parse, attempt again with another extractor
           None
         }
-        Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateParsed.get, endDate, endDay,
-          endMonth: String, endYear, startDate.equals(endDate)))
       } else {
         None
       }
@@ -714,7 +723,7 @@ object ISODateTimeRange {
 
   def formats = baseFormats
   
-  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f)) ++ Array(DateParser.OFFSET_DATE_OPTIONAL_TIME, DateParser.YEAR_MONTH_TO_LOCAL_DATE, DateParser.YEAR_TO_LOCAL_DATE)
 
   def unapply(str: String): Option[EventDate] = {
     try {
@@ -738,12 +747,12 @@ object ISODateTimeRange {
           endMonth = endDateParsed.get.format(DateParser.MONTH)
           endDay = endDateParsed.get.format(DateParser.DAY)
           endDate = LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), Integer.parseInt(endDay)).format(DateTimeFormatter.ISO_LOCAL_DATE)
+          Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateParsed.get, endDate, endDay,
+            endMonth: String, endYear, startDate.equals(endDate)))
         } else {
           // If the end date didn't parse, attempt again with another extractor
           None
         }
-        Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateParsed.get, endDate, endDay,
-          endMonth: String, endYear, startDate.equals(endDate)))
       } else {
         None
       }
@@ -820,9 +829,11 @@ object ISOVerboseDateTimeRange {
           endYear = endDateParsed.get.format(DateParser.YEAR)
           endMonth = endDateParsed.get.format(DateParser.MONTH)
           endDay = endDateParsed.get.format(DateParser.DAY)
+          Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateParsed.get, endDate, endDay,
+            endMonth: String, endYear, startDate.equals(endDate)))
+        } else {
+          None
         }
-        Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateParsed.get, endDate, endDay,
-          endMonth: String, endYear, startDate.equals(endDate)))
       } else {
         None
       }
