@@ -592,9 +592,9 @@ object ISOMonthDate {
         // Ignore day as it is defaulted in all of the patterns for this parser
         val startDay, endDay = ""
 
-        // NOTE: singleDate is set to "true" here because it is really a flag for whether only the year has been specified
+        // Note: The singleDate flag is not used as expected here, it has a specific purpose for EventProcessor.reformatToPrecision
         Some(EventDate(eventDateParsed.get, startDate, startDay, startMonth, startYear, eventDateParsed.get, endDate, endDay,
-          endMonth: String, endYear, startMonth.equals(endMonth)))
+          endMonth: String, endYear, true))
       } else {
         None
       }
