@@ -949,12 +949,16 @@ object ISOVerboseDateTimeRange {
 //}
 
 object ParseUtil {
-  def splitRange(str:String) = if(str.contains("&")){
-    str.split("&").map(_.trim)
-  } else if (str.contains("to")){
-    // FIXME: This will match "October"
-    str.split("to").map(_.trim)
-  } else {
-    str.split("/").map(_.trim)
+  def splitRange(str:String) = {
+    if(str.contains("&")){
+      str.split("&").map(_.trim).map(s => if (s.endsWith("-")) { s.substring(0, s.length() - 1) } else { s })
+    } else if (str.contains("to")){
+      // FIXME: This will match "October"
+      str.split("to").map(_.trim).map(s => if (s.endsWith("-")) { s.substring(0, s.length() - 1) } else { s })
+//      str.split("to").map(_.trim)
+    } else {
+      str.split("/").map(_.trim).map(s => if (s.endsWith("-")) { s.substring(0, s.length() - 1) } else { s })
+//      str.split("/").map(_.trim)
+    }
   }
 }
