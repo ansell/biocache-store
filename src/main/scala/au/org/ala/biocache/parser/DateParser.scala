@@ -581,7 +581,7 @@ object ISOMonthDate {
    */
   def unapply(str: String): Option[EventDate] = {
     try {
-      val eventDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(str, parsedFormats)
+      val eventDateParsed: Option[LocalDate] = DateParser.parseByFormat(str, parsedFormats)
       
       if (eventDateParsed.isDefined) {
         val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -589,11 +589,12 @@ object ISOMonthDate {
         val endDate = eventDateSerialised
         val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
         val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
-        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+        // Ignore day as it is defaulted in all of the patterns for this parser
+        val startDay, endDay = ""
 
         // NOTE: singleDate is set to "true" here because it is really a flag for whether only the year has been specified
         Some(EventDate(eventDateParsed.get, startDate, startDay, startMonth, startYear, eventDateParsed.get, endDate, endDay,
-          endMonth: String, endYear, true))
+          endMonth: String, endYear, startMonth.equals(endMonth)))
       } else {
         None
       }
