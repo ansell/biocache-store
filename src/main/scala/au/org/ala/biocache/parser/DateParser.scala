@@ -147,6 +147,13 @@ object DateParser {
   val YEAR = newDateFormat("uuuu")
   val MONTH = newDateFormat("MM")
   val DAY = newDateFormat("dd")
+  val SHORT_MONTH_HYPHEN_DAY = {
+    var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
+    result.appendPattern("M-d")
+    // Need to provide a default for the year or a LocalDate won't be created
+    result = result.parseDefaulting(ChronoField.YEAR, 1)
+    result.toFormatter(Locale.US)
+  }
   val OFFSET_DATE_OPTIONAL_TIME = { 
     var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
     result = appendDateParsing(result, false)
@@ -601,7 +608,7 @@ object ISODateRange extends DateRange
 /** Extractor for the format uuuu-MM-dd/uuuu-MM-dd */
 class DateRange {
 
-  def baseFormats = Array("uuuu-MM-dd", "uuuu-MM-dd'T'hh:mm-ss", "uuuu-MM-dd'T'HH:mm-ss", "uuuu-MM-dd'T'hh:mm'Z'", "uuuu-MM-dd'T'HH:mm'Z'")
+  def baseFormats = Array("uuuu-MM-dd", "uuuu-M-d", "uuuu-MM-dd'T'hh:mm-ss", "uuuu-MM-dd'T'HH:mm-ss", "uuuu-MM-dd'T'hh:mm'Z'", "uuuu-MM-dd'T'HH:mm'Z'")
 
   def formats = baseFormats
   
@@ -634,8 +641,21 @@ class DateRange {
           Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateParsed.get, endDate, endDay,
             endMonth: String, endYear, startDate.equals(endDate)))
         } else {
-          // If the end date didn't parse, attempt again with another extractor
-          None
+          // Last resort to support the uuuu-MM-dd/M-d pattern
+          val backupEndDateParsed = DateParser.parseByFormat(parts(1), Array(DateParser.SHORT_MONTH_HYPHEN_DAY))
+          if(backupEndDateParsed.isDefined) {
+            // Dummy year inserted in the SHORT_MONTH_HYPHEN_DAY parser, so substitute it with the startyear
+            endYear = startYear
+            endMonth = backupEndDateParsed.get.format(DateParser.MONTH)
+            endDay = backupEndDateParsed.get.format(DateParser.DAY)
+            // The backupEndDateParsed does not have a valid year value, so we can't expose it
+            val endDateReparsed = LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), Integer.parseInt(endDay))
+            endDate = endDateReparsed.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            Some(EventDate(startDateParsed.get, startDate, startDay, startMonth, startYear, endDateReparsed, endDate, endDay,
+              endMonth: String, endYear, startDate.equals(endDate)))
+          } else {
+            None
+          }
         }
       } else {
         None
