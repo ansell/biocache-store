@@ -330,6 +330,8 @@ object DateParser {
       Some(OffsetDateTime.parse(str, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toLocalDate())
     } else if (DateParser.dateMatches(str, DateTimeFormatter.ISO_ZONED_DATE_TIME)) {
       Some(ZonedDateTime.parse(str, DateTimeFormatter.ISO_ZONED_DATE_TIME).toLocalDate())
+    } else if (DateParser.dateMatches(str, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
+      Some(OffsetDateTime.parse(str, DateParser.OFFSET_DATE_OPTIONAL_TIME).toLocalDate())
 //    } else if (DateParser.dateMatches(str, DateParser.YEAR_TO_LOCAL_DATE)) {
 //      Some(LocalDate.parse(str, DateParser.YEAR_TO_LOCAL_DATE))
 //    } else if (DateParser.dateMatches(str, DateParser.YEAR_MONTH_TO_LOCAL_DATE)) {
