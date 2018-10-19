@@ -252,15 +252,17 @@ object DateParser {
     try {
       if(date == "") {
         None
-      } else if (offsetDateTimeMatches(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
-        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)))
-//        Some(DateUtils.parseDateStrictly(date,
-//          Array("yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss","yyyy-MM-dd")))
-      } else if (offsetDateTimeMatches(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)) {
-        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)))
       } else {
-        None
+        Some(DateUtils.parseDateStrictly(date,
+          Array("yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss","yyyy-MM-dd")))
       }
+//      } else if (offsetDateTimeMatches(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
+//        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)))
+//      } else if (offsetDateTimeMatches(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)) {
+//        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)))
+//      } else {
+//        None
+//      }
     } catch {
       case _:Exception => None
     }
