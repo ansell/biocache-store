@@ -4,6 +4,9 @@ import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
 import org.scalatest.Assertions._
 import au.org.ala.biocache.parser.DateParser
+import java.text.SimpleDateFormat
+import java.util.TimeZone
+import java.time.ZoneId
 
 /**
  * Tests for event date parsing. To run these tests create a new scala application
@@ -18,6 +21,16 @@ import au.org.ala.biocache.parser.DateParser
 @RunWith(classOf[JUnitRunner])
 class DateParserTest extends FunSuite {
 
+  test("2012-01-01T10:22:00") {
+    val result = DateParser.parseStringToDate("2012-01-01T10:22:00")
+    
+    expectResult(false){ result.isEmpty }
+    
+    val format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+    format.setTimeZone(TimeZone.getTimeZone(ZoneId.of("UTC")))
+    expectResult("2012-01-01T10:22:00")(format.format(result.get))
+  }
+  
   test("Single Year"){
     val result = DateParser.parseDate("1978")
     expectResult(false){ result.isEmpty }

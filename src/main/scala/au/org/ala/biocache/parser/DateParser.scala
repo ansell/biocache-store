@@ -20,6 +20,7 @@ import com.google.common.cache.CacheBuilder
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 /**
  * Date parser that uses scala extractors to handle the different formats.
@@ -52,6 +53,15 @@ object DateParser {
   def fromOffsetDateTime(toConvert: Option[OffsetDateTime]): Option[Date] = {
     toConvert match {
       case Some(toConvert) => {
+        Some(Date.from(toConvert.atZoneSameInstant(ZoneId.of("UTC")).toInstant()))
+      }
+      case None => None
+    }
+  }
+  
+  def fromZonedDateTime(toConvert: Option[ZonedDateTime]): Option[Date] = {
+    toConvert match {
+      case Some(toConvert) => {
         Some(Date.from(toConvert.toInstant()))
       }
       case None => None
@@ -79,6 +89,15 @@ object DateParser {
   def offsetDateTimeMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
     try {
       OffsetDateTime.parse(dateValue, inputFormat)
+      true
+    } catch {
+      case _:Exception => false
+    }
+  }
+  
+  def zonedDateTimeMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
+    try {
+      ZonedDateTime.parse(dateValue, inputFormat)
       true
     } catch {
       case _:Exception => false
@@ -278,7 +297,10 @@ object DateParser {
       } else if (localDateMatches(date, DateTimeFormatter.ISO_LOCAL_DATE)) {
         fromLocalDate(Some(LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)))
       } else if (localDateTimeMatches(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME)) {
-        fromLocalDateTime(Some(LocalDateTime.parse(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
+        // Add 'Z' to the original string so LocalDateTime instances are parsed as if they were all in UTC
+        fromZonedDateTime(Some(ZonedDateTime.parse(date + "Z", DateTimeFormatter.ISO_DATE_TIME)))
+      } else if (zonedDateTimeMatches(date, DateTimeFormatter.ISO_DATE_TIME)) {
+        fromZonedDateTime(Some(ZonedDateTime.parse(date, DateTimeFormatter.ISO_DATE_TIME)))
       } else if (offsetDateTimeMatches(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
         fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)))
       } else if (offsetDateTimeMatches(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)) {
