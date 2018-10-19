@@ -3,13 +3,15 @@ package au.org.ala.biocache.util
 import org.apache.commons.lang.time.{DateUtils, DateFormatUtils}
 import java.util.Date
 import au.org.ala.biocache.parser.EventDate
+import java.time.LocalDate
+import java.time.Year
 
 /**
  * Date util
  */
 object DateUtil {
 
-  def getCurrentYear = DateFormatUtils.format(new Date(), "yyyy").toInt
+  def getCurrentYear = Year.now().getValue
 
   def isFutureDate(date:EventDate) : Boolean = {
     val (str, format):(String, Array[String]) ={

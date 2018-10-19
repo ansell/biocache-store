@@ -11,6 +11,9 @@ import org.rev6.scf._
 import org.apache.commons.lang3.StringUtils
 import java.util.Date
 import au.org.ala.biocache.Config
+import java.time.OffsetDateTime
+import java.time.Instant
+import java.time.ZoneId
 
 object SFTPTools {
 
@@ -25,7 +28,7 @@ object SFTPTools {
   var session:Session = null
   val sftpPattern = """sftp://([a-zA-z\.]*):([0-9a-zA-Z_/\.\-]*)""".r
 
-  def sftpLatestArchive(url:String, resourceUid:String, tempDir:String, afterDate:Option[Date]):Option[(String,Date)]={
+  def sftpLatestArchive(url:String, resourceUid:String, tempDir:String, afterDate:Option[OffsetDateTime]):Option[(String,OffsetDateTime)]={
 
     val (user,password,host,directory) = url match {
       case connectionPattern(user, password, host, directory) => {
@@ -74,12 +77,12 @@ object SFTPTools {
     session.disconnect()
   }
 
-  def getLatestFile(dir:String, filePattern:String, afterDate:Option[Date]):Option[String] = {
+  def getLatestFile(dir:String, filePattern:String, afterDate:Option[OffsetDateTime]):Option[String] = {
 
     val list = listFiles(dir+File.separator+filePattern)
     if(!list.isEmpty){
       val item=list.reduceLeft((a,b) => if(a.getAttrs().getMTime() > b.getAttrs().getMTime()) a else b)
-      if(afterDate.isEmpty || (afterDate.get.getTime()/1000) < item.getAttrs().getMTime())
+      if(afterDate.isEmpty || (afterDate.get.toEpochSecond()/1000) < item.getAttrs().getMTime())
         Some(dir + File.separator + item.getFilename)
       else
         None
@@ -101,7 +104,7 @@ object SFTPTools {
   /**
    * SCP the remote file from the supplied host into localFile
    */
-  def scpFile(host:String, user:String, password:String, remoteFile:String, localFile:File):Option[(String,Date)]= {
+  def scpFile(host:String, user:String, password:String, remoteFile:String, localFile:File):Option[(String,OffsetDateTime)]= {
     if(StringUtils.isEmpty(user) || StringUtils.isEmpty(password))
       logger.error("SCP User or password has not been supplied. Please supply as part of the biocache-test-config.properties")
     var ssh:SshConnection = null
@@ -118,9 +121,10 @@ object SFTPTools {
         ssh.executeTask(command)
         val stringvalue = outputStream.toString()
         //logger.info("The string value of the modified date :$" + stringvalue+"$")
-        new Date(stringvalue.trim.toLong *1000)
-      } catch {
-        case e:Exception => e.printStackTrace();new Date()
+        val instant = Instant.ofEpochSecond(stringvalue.trim.toLong)
+        OffsetDateTime.ofInstant(instant, ZoneId.of("GMT"));
+        } catch {
+        case e:Exception => e.printStackTrace();OffsetDateTime.now(ZoneId.of("UTC"))
       }
 
       ssh.executeTask(new ScpDownload(scpFile))

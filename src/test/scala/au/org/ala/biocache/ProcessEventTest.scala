@@ -577,23 +577,19 @@ class ProcessEventTest extends ConfigFunSuite {
     expectResult(null){ processed.event.year }
   }
 
-    test("invalid date" ) {
+  test("invalid date" ) {
 
-      val raw = new FullRecord("1234")
-      val processed = new FullRecord("1234")
-      raw.event.eventDate = "26-6-5"
-      raw.event.eventDateEnd = null
-      raw.event.datePrecision = null
+    val raw = new FullRecord("1234")
+    val processed = new FullRecord("1234")
+    raw.event.eventDate = "26-6-5"
+    raw.event.eventDateEnd = null
+    raw.event.datePrecision = null
 
-      (new EventProcessor).process("1234", raw, processed)
+    (new EventProcessor).process("1234", raw, processed)
 
-      expectResult("2005-06-26"){ processed.event.eventDate }
-      expectResult(null){ processed.event.eventDateEnd }
-      expectResult("Day"){ processed.event.datePrecision }
-      expectResult("26"){ processed.event.day }
-      expectResult("06"){ processed.event.month }
-      expectResult("2005"){ processed.event.year }
-    }
+    expectResult(null){ processed.event.eventDate }
+    expectResult(null){ processed.event.eventDateEnd }
+  }
 
   test("ambiguous date 26-6-5" ) {
 
@@ -605,12 +601,8 @@ class ProcessEventTest extends ConfigFunSuite {
 
     (new EventProcessor).process("1234", raw, processed)
 
-    expectResult("2005-06-26"){ processed.event.eventDate }
+    expectResult(null){ processed.event.eventDate }
     expectResult(null){ processed.event.eventDateEnd }
-    expectResult("Day"){ processed.event.datePrecision }
-    expectResult("26"){ processed.event.day }
-    expectResult("06"){ processed.event.month }
-    expectResult("2005"){ processed.event.year }
   }
 
   test("ambiguous date 24-6-2" ) {
@@ -623,12 +615,8 @@ class ProcessEventTest extends ConfigFunSuite {
 
     (new EventProcessor).process("1234", raw, processed)
 
-    expectResult("2002-06-24"){ processed.event.eventDate }
+    expectResult(null){ processed.event.eventDate }
     expectResult(null){ processed.event.eventDateEnd }
-    expectResult("Day"){ processed.event.datePrecision }
-    expectResult("24"){ processed.event.day }
-    expectResult("06"){ processed.event.month }
-    expectResult("2002"){ processed.event.year }
   }
 
   test("24-5-26 unparseable" ) {
@@ -643,9 +631,7 @@ class ProcessEventTest extends ConfigFunSuite {
     (new EventProcessor).process("1234", raw, processed)
 
     expectResult(null){ processed.event.eventDate }
-    expectResult("24"){ processed.event.day }
-    expectResult("05"){ processed.event.month }
-    expectResult(null){ processed.event.year }
+    expectResult(null){ processed.event.eventDateEnd }
   }
 
   test("2002-02-02 eventDate, 02/02/2 verbatim" ) {
@@ -659,11 +645,8 @@ class ProcessEventTest extends ConfigFunSuite {
 
     (new EventProcessor).process("1234", raw, processed)
 
-    expectResult("2002-02-02"){ processed.event.eventDate }
-    expectResult("Day"){ processed.event.datePrecision }
-    expectResult("02"){ processed.event.day }
-    expectResult("02"){ processed.event.month }
-    expectResult("2002"){ processed.event.year }
+    expectResult(null){ processed.event.eventDate }
+    expectResult(null){ processed.event.eventDateEnd }
   }
 
 }

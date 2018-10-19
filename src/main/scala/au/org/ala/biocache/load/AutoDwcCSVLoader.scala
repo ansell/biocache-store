@@ -11,6 +11,7 @@ import scala.Console
 import collection.mutable.ArrayBuffer
 import au.org.ala.biocache.util.{OptionParser, FileHelper}
 import au.org.ala.biocache.vocab.DwC
+import java.time.OffsetDateTime
 
 /**
  * Loads a data resource that provides reloads and incremental updates.
@@ -90,14 +91,14 @@ class AutoDwcCSVLoader extends DataLoader {
         //remove the old file
         deleteOldRowKeys(dataResourceUid)
         var loaded = false
-        var maxLastModifiedDate: java.util.Date = null
+        var maxLastModifiedDate: OffsetDateTime = null
         //the supplied url should be an sftp string to the directory that contains the dumps
         dataResourceConfig.urls.foreach(url => {
           if (url.startsWith("sftp")) {
             val fileDetails = sftpLatestArchive(url, dataResourceUid, if (forceLoad) None else dataResourceConfig.dateLastChecked)
             if (fileDetails.isDefined) {
               val (filePath, date) = fileDetails.get
-              if (maxLastModifiedDate == null || date.after(maxLastModifiedDate)) {
+              if (maxLastModifiedDate == null || date.isAfter(maxLastModifiedDate)) {
                 maxLastModifiedDate = date
               }
               loadAutoFile(new File(filePath), dataResourceUid, dataResourceConfig, includeIds, strip)

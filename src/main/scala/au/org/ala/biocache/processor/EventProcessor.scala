@@ -418,7 +418,7 @@ class EventProcessor extends Processor {
       if(eventDate.isDefined) {
         //now test if the record was identified before it was collected
         if (StringUtils.isNotBlank(processed.identification.dateIdentified)) {
-          if (DateParser.parseStringToDate(processed.identification.dateIdentified).get.before(eventDate.get)) {
+          if (DateParser.parseStringToDate(processed.identification.dateIdentified).get.isBefore(eventDate.get)) {
             //the record was identified before it was collected !!
             assertions += QualityAssertion(ID_PRE_OCCURRENCE, "The records was identified before it was collected")
           } else {
@@ -428,7 +428,7 @@ class EventProcessor extends Processor {
 
         //now check if the record was georeferenced after the collection date
         if (StringUtils.isNotBlank(processed.location.georeferencedDate)) {
-          if (DateParser.parseStringToDate(processed.location.georeferencedDate).get.after(eventDate.get)) {
+          if (DateParser.parseStringToDate(processed.location.georeferencedDate).get.isAfter(eventDate.get)) {
             //the record was not georeference when it was collected!!
             assertions += QualityAssertion(GEOREFERENCE_POST_OCCURRENCE, "The record was not georeferenced when it was collected")
           } else {

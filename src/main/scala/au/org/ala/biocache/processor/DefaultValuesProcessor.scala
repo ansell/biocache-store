@@ -51,7 +51,7 @@ class DefaultValuesProcessor extends Processor {
       DateParser.parseStringToDate(lastProcessed.get.lastModifiedTime)
     }
 
-    if (raw.occurrence.originalSensitiveValues != null && (lastLoadedDate.isEmpty || lastProcessedDate.isEmpty || lastLoadedDate.get.before(lastProcessedDate.get))) {
+    if (raw.occurrence.originalSensitiveValues != null && (lastLoadedDate.isEmpty || lastProcessedDate.isEmpty || lastLoadedDate.get.isBefore(lastProcessedDate.get))) {
       FullRecordMapper.mapPropertiesToObject(raw, raw.occurrence.originalSensitiveValues)
     }
 

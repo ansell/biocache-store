@@ -25,16 +25,6 @@ class IndexTest extends ConfigFunSuite {
         expectResult(false){indexer.shouldIndex(map2, DateParser.parseStringToDate("2011-07-20T10:00:00Z"))}
     }
     
-//    This test does not belong here
-//    test("Get error code Tests"){
-//        val dao = new OccurrenceDAOImpl
-//        val map = Map("attr.qa"->"[]", "bor.qa"->"[12,33]", "class.qa"->"[]", "image.qa"->"[]", "loc.qa"->"[27]", "type.qa"->"[]")
-//        val test = dao.getErrorCodes(map)
-//        println(test +" : " + test.getClass)
-//        for(value <- test)
-//            println("value: " + value)
-//    }
-//    
     test("Raw Scientific Name"){
         var map = Map("scientificName"->"Aus bus")
         val indexer = new SolrIndexDAO("/data/solr/biocache","","")

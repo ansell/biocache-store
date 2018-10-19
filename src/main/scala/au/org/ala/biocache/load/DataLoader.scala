@@ -14,6 +14,10 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.parsing.json.JSON
+import java.time.OffsetDateTime
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
   * A trait with utility code for loading data into the occurrence store.
@@ -364,7 +368,7 @@ trait DataLoader {
     * @param lastChecked
     * @return
     */
-  protected def downloadArchive(url: String, resourceUid: String, lastChecked: Option[Date]): (String, Date) = {
+  protected def downloadArchive(url: String, resourceUid: String, lastChecked: Option[OffsetDateTime]): (String, OffsetDateTime) = {
     //when the url starts with SFTP need to SCP the file from the supplied server.
     val (file, date, isZipped, isGzipped) = if (url.startsWith("sftp://")) {
       downloadSFTPArchive(url, resourceUid, lastChecked)
@@ -404,7 +408,7 @@ trait DataLoader {
     * @param lastChecked
     * @return
     */
-  protected def downloadSFTPArchive(url: String, resourceUid: String, lastChecked: Option[Date]): (File, Date, Boolean, Boolean) = {
+  protected def downloadSFTPArchive(url: String, resourceUid: String, lastChecked: Option[OffsetDateTime]): (File, OffsetDateTime, Boolean, Boolean) = {
     url match {
       case sftpPattern(server, filename) => {
         val (targetfile, date, isZipped, isGzipped, downloaded) = {
@@ -471,7 +475,7 @@ trait DataLoader {
     * @param afterDate
     * @return
     */
-  def sftpLatestArchive(url: String, resourceUid: String, afterDate: Option[Date]): Option[(String, Date)] =
+  def sftpLatestArchive(url: String, resourceUid: String, afterDate: Option[OffsetDateTime]): Option[(String, OffsetDateTime)] =
     SFTPTools.sftpLatestArchive(url, resourceUid, temporaryFileStore, afterDate)
 
   /**
@@ -482,7 +486,7 @@ trait DataLoader {
     * @param afterDate
     * @return
     */
-  def downloadStandardArchive(url: String, resourceUid: String, afterDate: Option[Date]): (File, Date, Boolean, Boolean) = {
+  def downloadStandardArchive(url: String, resourceUid: String, afterDate: Option[OffsetDateTime]): (File, OffsetDateTime, Boolean, Boolean) = {
 
     val tmpStore = new File(temporaryFileStore)
     if (!tmpStore.exists) {
@@ -491,9 +495,12 @@ trait DataLoader {
 
     logger.info("Downloading zip file from " + url)
     val urlConnection = new java.net.URL(url.replaceAll(" ", "%20")).openConnection()
-    val date = if (urlConnection.getLastModified() == 0) new Date() else new Date(urlConnection.getLastModified())
-    //logger.info("URL Last Modified: " +urlConnection.getLastModified())
-    if (afterDate.isEmpty || urlConnection.getLastModified() == 0 || afterDate.get.getTime() < urlConnection.getLastModified()) {
+    logger.info("URL Last Modified: " +urlConnection.getLastModified())
+    val instant = if (urlConnection.getLastModified() == 0) Instant.now() else Instant.ofEpochMilli(urlConnection.getLastModified())
+    val date = OffsetDateTime.ofInstant(instant, ZoneId.of("GMT"));
+    logger.info("URL Last Modified after parsing: " + date.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+    
+    if (afterDate.isEmpty || urlConnection.getLastModified() == 0 || afterDate.get.isAfter(date)) {
       //handle the situation where the files name is not supplied in the URL but in the Content-Disposition
       val contentDisp = urlConnection.getHeaderField("Content-Disposition")
       if (contentDisp != null) {
@@ -547,7 +554,7 @@ trait DataLoader {
   /**
     * Calls the collectory webservice to update the last loaded time for a data resource
     */
-  def updateLastChecked(resourceUid: String, dataCurrency: Option[Date] = None): Boolean = {
+  def updateLastChecked(resourceUid: String, dataCurrency: Option[OffsetDateTime] = None): Boolean = {
     try {
       //set the last check time for the supplied resourceUid only if configured to allow updates
       if (Config.allowCollectoryUpdates == "true") {
@@ -556,7 +563,7 @@ trait DataLoader {
         map ++= Map("user" -> user, "api_key" -> Config.collectoryApiKey, "lastChecked" -> loadTime)
 
         if (dataCurrency.isDefined) {
-          map += ("dataCurrency" -> dataCurrency.get)
+          map += ("dataCurrency" -> dataCurrency.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
         }
         //turn the map of values into JSON representation
         val data = map.map(pair => "\"" + pair._1 + "\":\"" + pair._2 + "\"").mkString("{", ",", "}")

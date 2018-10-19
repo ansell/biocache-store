@@ -1,6 +1,7 @@
 package au.org.ala.biocache.load
 
 import java.util.Date
+import java.time.OffsetDateTime
 
 /**
  * Object representing a data resource configuration.
@@ -8,4 +9,4 @@ import java.util.Date
 case class DataResourceConfig(protocol:String, urls:Seq[String], uniqueTerms:Seq[String],
                          connectionParams:Map[String,String],
                          customParams:Map[String,String],
-                         dateLastChecked:Option[Date] = None){}
+                         dateLastChecked:Option[OffsetDateTime] = None){}

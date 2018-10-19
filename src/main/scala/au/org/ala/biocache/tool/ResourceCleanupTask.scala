@@ -113,9 +113,9 @@ object ResourceCleanupTask extends Tool with IncrementalTool {
           }
         } else {
           if (isInclusiveList) {
-            removeRawRecordColumnsNotInListByDate(dataResourceUid, columns, checkDate.get.getTime(), test)
+            removeRawRecordColumnsNotInListByDate(dataResourceUid, columns, checkDate.get.toEpochSecond(), test)
           } else {
-            removeSpecifiedColumnsByDate(dataResourceUid, columns, checkDate.get.getTime(), test)
+            removeSpecifiedColumnsByDate(dataResourceUid, columns, checkDate.get.toEpochSecond(), test)
           }
         }
       }
