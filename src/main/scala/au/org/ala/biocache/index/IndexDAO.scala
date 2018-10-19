@@ -1,7 +1,6 @@
 package au.org.ala.biocache.index
 
 import java.io.{File, FileWriter, OutputStream}
-import java.util.Date
 
 import au.org.ala.biocache.Config
 import au.org.ala.biocache.dao.OccurrenceDAO
@@ -18,6 +17,8 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.parsing.json.JSON
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * All Index implementations need to extend this trait.
@@ -61,7 +62,7 @@ trait IndexDAO {
   def indexFromMap(guid: String,
                    map: scala.collection.Map[String, String],
                    batch: Boolean = true,
-                   startDate: Option[Date] = None,
+                   startDate: Option[OffsetDateTime] = None,
                    commit: Boolean = false,
                    miscIndexProperties: Seq[String] = Array[String](),
                    userProvidedTypeMiscIndexProperties: Seq[String] = Array[String](),
@@ -758,21 +759,21 @@ trait IndexDAO {
           subspeciesGuid,
           subspeciesName,
           interactions.mkString("|"),
-          if (lastUserAssertion.isEmpty) "" else DateFormatUtils.format(lastUserAssertion.get, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-          if (lastLoaded.isEmpty) "2010-11-1T00:00:00Z" else DateFormatUtils.format(lastLoaded.get, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-          if (lastProcessed.isEmpty) "" else DateFormatUtils.format(lastProcessed.get, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-          if (modifiedDate.isEmpty) "" else DateFormatUtils.format(modifiedDate.get, "yyy-MM-dd'T'HH:mm:ss'Z'"),
+          if (lastUserAssertion.isEmpty) "" else lastUserAssertion.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+          if (lastLoaded.isEmpty) "2010-11-1T00:00:00Z" else lastLoaded.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+          if (lastProcessed.isEmpty) "" else lastProcessed.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+          if (modifiedDate.isEmpty) "" else modifiedDate.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
           getParsedValue("establishmentMeans", map).replaceAll("; ", "|"),
           getValue("loanSequenceNumber", map, ""),
           getValue("loanIdentifier", map, ""),
           getValue("loanDestination", map, ""),
           getValue("loanForBotanist", map, ""),
-          if (loanDate.isEmpty) "" else DateFormatUtils.format(loanDate.get, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
-          if (loanReturnDate.isEmpty) "" else DateFormatUtils.format(loanReturnDate.get, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+          if (loanDate.isEmpty) "" else loanDate.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
+          if (loanReturnDate.isEmpty) "" else loanReturnDate.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
           getValue("originalNameUsage", map, getValue("typifiedName", map, "")),
           getValue("duplicates", map, ""), //.replaceAll(",","|"),
           getValue("recordNumber", map, ""),
-          if (firstLoadDate.isEmpty) "" else DateFormatUtils.format(firstLoadDate.get, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+          if (firstLoadDate.isEmpty) "" else firstLoadDate.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
           getParsedValue("nameMatchMetric", map),
           getValue("phenology", map, ""),
           outlierForLayers.mkString("|"),
@@ -782,7 +783,7 @@ trait IndexDAO {
           getParsedValue("identificationQualifier", map),
           habitats.mkString("|"),
           getValue("identifiedBy", map),
-          if (dateIdentified.isEmpty) "" else DateFormatUtils.format(dateIdentified.get, "yyyy-MM-dd'T'HH:mm:ss'Z'"),
+          if (dateIdentified.isEmpty) "" else dateIdentified.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
           sensitiveMap.getOrElse("decimalLongitude", ""),
           sensitiveMap.getOrElse("decimalLatitude", ""),
           pest_tmp,

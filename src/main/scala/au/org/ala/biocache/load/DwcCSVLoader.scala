@@ -12,6 +12,7 @@ import au.org.ala.biocache.vocab.DwC
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
+import java.time.OffsetDateTime
 
 /**
  * Companion object for the DwcCSVLoader class
@@ -106,10 +107,10 @@ class DwcCSVLoader extends DataLoader {
         val strip = config.connectionParams.getOrElse("strip", false).asInstanceOf[Boolean]
         val incremental = config.connectionParams.getOrElse("incremental",false).asInstanceOf[Boolean]
         var loaded = false
-        var maxLastModifiedDate:java.util.Date = null
+        var maxLastModifiedDate:OffsetDateTime = null
         config.urls.foreach { url =>
           val (fileName, date) = downloadArchive(url, dataResourceUid, if(forceLoad) None else config.dateLastChecked)
-          if(maxLastModifiedDate == null || date.after(maxLastModifiedDate)) {
+          if(maxLastModifiedDate == null || date.isAfter(maxLastModifiedDate)) {
             maxLastModifiedDate = date
           }
           logger.info("File last modified date: " + maxLastModifiedDate)

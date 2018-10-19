@@ -13,6 +13,7 @@ import scala.collection.JavaConversions
 import scala.collection.mutable.HashMap
 import scala.io.Source
 import scala.util.parsing.json.JSON
+import java.time.OffsetDateTime
 
 /**
   * Runnable loader that just takes a resource UID and delegates based on the protocol.
@@ -33,7 +34,7 @@ object Loader extends Tool {
     var loadAll = false
     var removeNullFields = false
     var loadMissingOnly = false
-    var lastUpdated: Option[Date] = None
+    var lastUpdated: Option[OffsetDateTime] = None
     var localFilePath: Option[String] = None
     var logRowKeys = true
     var testFile = false
@@ -181,7 +182,7 @@ class Loader extends DataLoader {
   }
 
   def load(dataResourceUid: String, test: Boolean = false, forceLoad: Boolean = false, removeNullFields: Boolean = false,
-           startDate: Option[Date] = None, localFilePath: Option[String] = None,
+           startDate: Option[OffsetDateTime] = None, localFilePath: Option[String] = None,
            bypassConnParamLookup: Boolean = false, logRowKeys: Boolean = true, loadMissingOnly: Boolean = false) {
     try {
       val config = retrieveConnectionParameters(dataResourceUid)

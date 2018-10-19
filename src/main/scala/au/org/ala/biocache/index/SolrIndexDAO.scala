@@ -34,6 +34,7 @@ import org.apache.solr.core.CoreContainer
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
+import java.time.OffsetDateTime
 
 /**
   * DAO for indexing to SOLR
@@ -437,26 +438,26 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
     * Decides whether or not the current record should be indexed based on processed times
     * and deletion status
     */
-  def shouldIndex(map: scala.collection.Map[String, String], startDate: Option[Date]): Boolean = {
+  def shouldIndex(map: scala.collection.Map[String, String], startDate: Option[OffsetDateTime]): Boolean = {
     if (map.getOrElse(FullRecordMapper.deletedColumn, "").length() > 0 || map.size < 2) {
       return false
     }
     if (!startDate.isEmpty) {
       val lastLoaded = DateParser.parseStringToDate(getValue(FullRecordMapper.alaModifiedColumn, map))
       val lastProcessed = DateParser.parseStringToDate(getValue(FullRecordMapper.alaModifiedColumn + Config.persistenceManager.fieldDelimiter + "p", map))
-      return startDate.get.before(lastProcessed.getOrElse(startDate.get)) || startDate.get.before(lastLoaded.getOrElse(startDate.get))
+      return startDate.get.isBefore(lastProcessed.getOrElse(startDate.get)) || startDate.get.isBefore(lastLoaded.getOrElse(startDate.get))
     }
     true
   }
 
-  def shouldIndex(array: DataRow, startDate: Option[Date]): Boolean = {
+  def shouldIndex(array: DataRow, startDate: Option[OffsetDateTime]): Boolean = {
     if (getArrayValue(columnOrder.deletedColumn, array).length() > 0) {
       return false
     }
     if (!startDate.isEmpty) {
       val lastLoaded = DateParser.parseStringToDate(getArrayValue(columnOrder.alaModifiedColumn, array))
       val lastProcessed = DateParser.parseStringToDate(getArrayValue(columnOrder.alaModifiedColumnP, array))
-      return startDate.get.before(lastProcessed.getOrElse(startDate.get)) || startDate.get.before(lastLoaded.getOrElse(startDate.get))
+      return startDate.get.isBefore(lastProcessed.getOrElse(startDate.get)) || startDate.get.isBefore(lastLoaded.getOrElse(startDate.get))
     }
     true
   }
@@ -490,7 +491,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
   override def indexFromMap(guid: String,
                             map: scala.collection.Map[String, String],
                             batch: Boolean = true,
-                            startDate: Option[Date] = None,
+                            startDate: Option[OffsetDateTime] = None,
                             commit: Boolean = false,
                             miscIndexProperties: Seq[String] = Array[String](),
                             userProvidedTypeMiscIndexProperties: Seq[String] = Array[String](),
@@ -888,7 +889,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
   def indexFromMapNew(guid: String,
                       map: scala.collection.Map[String, String],
                       batch: Boolean = true,
-                      startDate: Option[Date] = None,
+                      startDate: Option[OffsetDateTime] = None,
                       commit: Boolean = false,
                       miscIndexProperties: Seq[String] = Array[String](),
                       userProvidedTypeMiscIndexProperties: Seq[String] = Array[String](),
@@ -1032,7 +1033,7 @@ class SolrIndexDAO @Inject()(@Named("solr.home") solrHome: String,
   def indexFromArray(guid: String,
                      dataRow:DataRow,
                      batch: Boolean = true,
-                     startDate: Option[Date] = None,
+                     startDate: Option[OffsetDateTime] = None,
                      commit: Boolean = false,
                      miscIndexProperties: Seq[String] = Array[String](),
                      userProvidedTypeMiscIndexProperties: Seq[String] = Array[String](),

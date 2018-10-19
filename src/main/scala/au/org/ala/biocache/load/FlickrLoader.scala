@@ -14,6 +14,8 @@ import au.org.ala.biocache.model.FullRecord
 import au.org.ala.biocache.util.OptionParser
 import au.org.ala.biocache.vocab.{TagsToDwc, DwC}
 import org.slf4j.LoggerFactory
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 
 object FlickrUserLoader extends DataLoader {
 
@@ -21,7 +23,7 @@ object FlickrUserLoader extends DataLoader {
 
     var dataResourceUid = ""
     var flickrUserId = ""
-    var lastUpdated:Option[Date] = None
+    var lastUpdated:Option[OffsetDateTime] = None
 
     val parser = new OptionParser("Load flickr images for registered users") {
       arg("<data resource UID>", "The UID of the data resource to load", { v: String => dataResourceUid = v })
@@ -60,8 +62,8 @@ object FlickrLoader extends DataLoader {
   def main(args: Array[String]) {
 
     var dataResourceUid = ""
-    var startDate: Option[Date] = None
-    var endDate: Option[Date] = None
+    var startDate: Option[OffsetDateTime] = None
+    var endDate: Option[OffsetDateTime] = None
     var overwriteImages = false
     var lastMonth = false
     var lastDay = false
@@ -70,15 +72,15 @@ object FlickrLoader extends DataLoader {
     var modifiedLastMonth = false
     var modifiedLastDay = false
     var modifiedLastWeek = false
-    var lastUpdatedDate:Option[Date] = None
+    var lastUpdatedDate:Option[OffsetDateTime] = None
 
     val parser = new OptionParser("Load flickr resource") {
       arg("<data resource UID>", "The UID of the data resource to load", { v: String => dataResourceUid = v })
       opt("s", "startDate", "start date to harvest from in yyyy-MM-dd format", {
-        v: String => startDate = Some(DateUtils.parseDate(v, Array("yyyy-MM-dd")))
+        v: String => startDate = Some(OffsetDateTime.parse(v, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
       })
       opt("e", "endDate", "end date in yyyy-MM-dd format", {
-        v: String => endDate = Some(DateUtils.parseDate(v, Array("yyyy-MM-dd")))
+        v: String => endDate = Some(OffsetDateTime.parse(v, DateTimeFormatter.ISO_OFFSET_DATE_TIME))
       })
       opt("lm", "harvestLastMonth", "Harvest the last month of records", { lastMonth = true })
       opt("ld", "harvestLastDay", "Harvest the last day of records", { lastDay = true })
@@ -96,31 +98,32 @@ object FlickrLoader extends DataLoader {
     if(parser.parse(args)){
       val l = new FlickrLoader
       lastUpdatedDate = {
-        val today = new Date
+        val today = OffsetDateTime.now()
         if (modifiedLastDay){
-          Some(DateUtils.addDays(today, -1))
+          Some(today.minusDays(1))
         } else if (modifiedLastWeek) {
-          Some(DateUtils.addWeeks(today, -1))
+          Some(today.minusWeeks(1))
         } else if(modifiedLastMonth) {
-          Some(DateUtils.addMonths(today, -1))
+          Some(today.minusMonths(1))
         } else if(lastUpdatedDate.isDefined) {
           lastUpdatedDate
         } else {
           None
         }
       }
-      logger.info("Last updated date: " + lastUpdatedDate.get.getTime)
+      logger.info("Last updated date: (epoch seconds)" + lastUpdatedDate.get.toEpochSecond())
+      logger.info("Last updated date: ISO8601" + lastUpdatedDate.get.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
       if(lastMonth){
-        val today = new Date
-        val monthAgo = DateUtils.addMonths(today, -1)
+        val today = OffsetDateTime.now()
+        val monthAgo = today.minusMonths(1)
         l.load(dataResourceUid, Some(monthAgo), Some(today), updateCollectory, overwriteImages, lastUpdatedDate)
       } else if(lastDay){
-        val today = new Date
-        val yesterday = DateUtils.addDays(today, -1)
+        val today = OffsetDateTime.now()
+        val yesterday = today.minusDays(1)
         l.load(dataResourceUid, Some(yesterday), Some(today), updateCollectory, overwriteImages, lastUpdatedDate)
       } else if(lastWeek){
-        val today = new Date
-        val sevenDaysAgo = DateUtils.addWeeks(today, -1)
+        val today = OffsetDateTime.now()
+        val sevenDaysAgo = today.minusWeeks(1)
         l.load(dataResourceUid, Some(sevenDaysAgo), Some(today), updateCollectory, overwriteImages, lastUpdatedDate)
       } else {
         l.load(dataResourceUid, startDate, endDate, updateCollectory, overwriteImages, lastUpdatedDate)
@@ -156,8 +159,8 @@ class FlickrLoader extends DataLoader {
   /**
    * Load the resource between the supplied dates.
    */
-  def load(dataResourceUid: String, suppliedStartDate: Option[Date], suppliedEndDate: Option[Date],
-           updateCollectory: Boolean, overwriteImages: Boolean = false, lastUpdatedDate:Option[Date]){
+  def load(dataResourceUid: String, suppliedStartDate: Option[OffsetDateTime], suppliedEndDate: Option[OffsetDateTime],
+           updateCollectory: Boolean, overwriteImages: Boolean = false, lastUpdatedDate:Option[OffsetDateTime]){
     retrieveConnectionParameters(dataResourceUid) match {
       case None => logger.error("Unable to retrieve connection params for " + dataResourceUid)
       case Some(config) =>
@@ -203,7 +206,7 @@ class FlickrLoader extends DataLoader {
    * @param updateCollectory
    */
   def loadWithoutDateRange(params: Map[String, String], dataResourceUid: String, updateCollectory: Boolean,
-                           lastUpdatedDate:Option[Date] = None) {
+                           lastUpdatedDate:Option[OffsetDateTime] = None) {
     val licences = retrieveLicenceMap(params)
     val keywords = params.getOrElse("keywords", "").split(",").map(keyword => keyword.trim.replaceAll(" ", "").toLowerCase).toList
     val userLookup = getUserLookup
@@ -245,26 +248,26 @@ class FlickrLoader extends DataLoader {
    * @param dataResourceUid
    * @param updateCollectory
    */
-  def load(params: Map[String, String], suppliedEndDate: Option[Date], suppliedStartDate: Option[Date],
-           dataResourceUid: String, updateCollectory: Boolean, lastUpdatedDate:Option[Date]) {
+  def load(params: Map[String, String], suppliedEndDate: Option[OffsetDateTime], suppliedStartDate: Option[OffsetDateTime],
+           dataResourceUid: String, updateCollectory: Boolean, lastUpdatedDate:Option[OffsetDateTime]) {
     val licences = retrieveLicenceMap(params)
     val keywords = params.getOrElse("keywords", "").split(",").map(keyword => keyword.trim.replaceAll(" ", "").toLowerCase).toList
     val userLookup = getUserLookup
 
     val endDate = suppliedEndDate.getOrElse({
       params.get("end_date") match {
-        case Some(v) => DateUtils.parseDate(v, Array("yyyy-MM-dd"))
-        case None => new Date()
+        case Some(v) => OffsetDateTime.parse(v, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        case None => OffsetDateTime.now()
       }
     })
     val startDate = suppliedStartDate.getOrElse({
       params.get("start_date") match {
-        case Some(v) => DateUtils.parseDate(v, Array("yyyy-MM-dd"))
-        case None => DateUtils.parseDate("2004-01-01", Array("yyyy-MM-dd"))
+        case Some(v) => OffsetDateTime.parse(v, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        case None => OffsetDateTime.parse("2004-01-01", DateTimeFormatter.ISO_OFFSET_DATE_TIME)
       }
     })
 
-    var currentStartDate = DateUtils.addDays(endDate, -1)
+    var currentStartDate = endDate.minusDays(1)
     var currentEndDate = endDate
 
     val df = new SimpleDateFormat("yyyy-MM-dd")
@@ -272,7 +275,7 @@ class FlickrLoader extends DataLoader {
     logger.info("Starting with range: " + df.format(currentStartDate) + " to " + df.format(currentEndDate))
 
     // page through the images month-by-month
-    while (currentStartDate.after(startDate) || currentStartDate.equals(startDate)) {
+    while (currentStartDate.isAfter(startDate) || currentStartDate.equals(startDate)) {
 
       logger.info("Harvesting time period: " + df.format(currentStartDate) + " to " + df.format(currentEndDate))
       try {
@@ -299,7 +302,7 @@ class FlickrLoader extends DataLoader {
         case e: Exception => logger.error(e.getMessage, e)
       }
       currentEndDate = currentStartDate
-      currentStartDate = DateUtils.addDays(currentEndDate, -1)
+      currentStartDate = currentEndDate.minusDays(1)
     }
 
     if (updateCollectory) {
@@ -552,11 +555,11 @@ class FlickrLoader extends DataLoader {
     "?method=flickr.photos.licenses.getInfo" +
     "&api_key=" + connectParams("api_key")
 
-  def getPhotoIdsForDateRange(connectParams: Map[String, String], startDate: Date, endDate: Date, lastUpdatedDate:Option[Date]): List[String] = {
+  def getPhotoIdsForDateRange(connectParams: Map[String, String], startDate: OffsetDateTime, endDate: OffsetDateTime, lastUpdatedDate:Option[OffsetDateTime]): List[String] = {
 
-    val mysqlDateTime = new SimpleDateFormat("yyyy-MM-dd")
-    val minUpdateDate = mysqlDateTime.format(startDate)
-    val maxUpdateDate = mysqlDateTime.format(endDate)
+//    val mysqlDateTime = new SimpleDateFormat("yyyy-MM-dd")
+    val minUpdateDate = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+    val maxUpdateDate = endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
     logger.info("Getting photo ids for " + connectParams + " start " + startDate + " endDate : " + endDate + " lastUpdated: " + lastUpdatedDate)
     val firstUrl = makeSearchUrl(connectParams, minUpdateDate, maxUpdateDate, 0, lastUpdatedDate.isDefined)
     logger.info(firstUrl)
@@ -568,7 +571,7 @@ class FlickrLoader extends DataLoader {
       val firstBatch = if (lastUpdatedDate.isEmpty){
         (xml \\ "photo").toList.map(photo => photo.attribute("id").get.toString)
       } else{
-        (xml \\ "photo").toList.filter(photo => java.lang.Long.parseLong(photo.attribute("lastupdate").get.toString) >= lastUpdatedDate.get.getTime/1000).map(photo => photo.attribute("id").get.toString)
+        (xml \\ "photo").toList.filter(photo => java.lang.Long.parseLong(photo.attribute("lastupdate").get.toString) >= lastUpdatedDate.get.toEpochSecond()).map(photo => photo.attribute("id").get.toString)
       }
       val theRest = for (pageNo <- 2 until pages + 1) yield retrieveBatch(connectParams, minUpdateDate, maxUpdateDate, pageNo, lastUpdatedDate)
       (firstBatch ::: theRest.toList.flatten)
@@ -576,7 +579,7 @@ class FlickrLoader extends DataLoader {
     photoIds
   }
 
-  def getPhotoIds(connectParams: Map[String, String], lastUpdatedDate:Option[Date]=None): List[String] = {
+  def getPhotoIds(connectParams: Map[String, String], lastUpdatedDate:Option[OffsetDateTime]=None): List[String] = {
 
     val firstUrl = makeSearchUrl(connectParams, 0, lastUpdatedDate.isDefined)
     logger.info(firstUrl)
@@ -589,7 +592,7 @@ class FlickrLoader extends DataLoader {
       val firstBatch = if (lastUpdatedDate.isEmpty){
         (xml \\ "photo").toList.map(photo => photo.attribute("id").get.toString)
       } else{
-        (xml \\ "photo").toList.filter(photo => java.lang.Long.parseLong(photo.attribute("lastupdate").get.toString) >= lastUpdatedDate.get.getTime/1000).map(photo => photo.attribute("id").get.toString)
+        (xml \\ "photo").toList.filter(photo => java.lang.Long.parseLong(photo.attribute("lastupdate").get.toString) >= lastUpdatedDate.get.toEpochSecond()).map(photo => photo.attribute("id").get.toString)
       }
       val theRest = for (pageNo <- 2 until pages + 1) yield retrieveBatch(connectParams, pageNo, lastUpdatedDate)
       (firstBatch ::: theRest.toList.flatten)
@@ -597,23 +600,23 @@ class FlickrLoader extends DataLoader {
     photoIds
   }
 
-  def retrieveBatch(connectParams: Map[String, String], pageNo: Int, lastUpdatedDate:Option[Date]): List[String] = {
+  def retrieveBatch(connectParams: Map[String, String], pageNo: Int, lastUpdatedDate:Option[OffsetDateTime]): List[String] = {
     val urlToSearch = makeSearchUrl(connectParams, pageNo, lastUpdatedDate.isDefined)
     val xmlPage = XML.loadString(scala.io.Source.fromURL(urlToSearch, "UTF-8").mkString)
     retrievePhotoIds(xmlPage, lastUpdatedDate)
   }
 
-  def retrieveBatch(connectParams: Map[String, String], minUpdateDate: String, maxUpdateDate: String, pageNo: Int, lastUpdatedDate:Option[Date]): List[String] = {
+  def retrieveBatch(connectParams: Map[String, String], minUpdateDate: String, maxUpdateDate: String, pageNo: Int, lastUpdatedDate:Option[OffsetDateTime]): List[String] = {
     val urlToSearch = makeSearchUrl(connectParams, minUpdateDate, maxUpdateDate, pageNo, lastUpdatedDate.isDefined)
     val xmlPage = XML.loadString(scala.io.Source.fromURL(urlToSearch, "UTF-8").mkString)
     retrievePhotoIds(xmlPage, lastUpdatedDate)
   }
 
-  def retrievePhotoIds(xml: scala.xml.Elem, lastUpdatedDate:Option[Date]=None):List[String] = {
+  def retrievePhotoIds(xml: scala.xml.Elem, lastUpdatedDate:Option[OffsetDateTime]=None):List[String] = {
     if(lastUpdatedDate.isEmpty) {
       (xml \\ "photo").toList.map(photo => photo.attribute("id").get.toString)
     } else {
-      (xml \\ "photo").toList.filter(photo => java.lang.Long.parseLong(photo.attribute("lastupdate").get.toString) >= lastUpdatedDate.get.getTime/1000).map(photo => photo.attribute("id").get.toString)
+      (xml \\ "photo").toList.filter(photo => java.lang.Long.parseLong(photo.attribute("lastupdate").get.toString) >= lastUpdatedDate.get.toEpochSecond()).map(photo => photo.attribute("id").get.toString)
     }
   }
 

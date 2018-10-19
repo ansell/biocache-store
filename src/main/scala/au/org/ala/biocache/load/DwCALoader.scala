@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.{JavaConversions, mutable}
+import java.time.OffsetDateTime
 
 /**
  * Loading utility for pulling in a darwin core archive file.
@@ -112,11 +113,11 @@ class DwCALoader extends DataLoader {
         val incremental = dataResourceConfig.connectionParams.getOrElse("incremental", false).asInstanceOf[Boolean]
         val strip = dataResourceConfig.connectionParams.getOrElse("strip", false).asInstanceOf[Boolean]
         var loaded = false
-        var maxLastModifiedDate:java.util.Date = null
+        var maxLastModifiedDate:OffsetDateTime = null
         dataResourceConfig.urls.foreach { url =>
           //download
           val (fileName, date) = downloadArchive(url,resourceUid, if(forceLoad) None else dataResourceConfig.dateLastChecked)
-          if(maxLastModifiedDate == null || date.after(maxLastModifiedDate)){
+          if(maxLastModifiedDate == null || date.isAfter(maxLastModifiedDate)){
             maxLastModifiedDate = date
           }
           logger.info("File last modified date: " + maxLastModifiedDate)
