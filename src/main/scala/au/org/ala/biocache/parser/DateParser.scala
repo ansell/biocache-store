@@ -8,6 +8,17 @@ import java.util.Date
 import java.text.ParseException
 import scala.Predef._
 import au.org.ala.biocache.util.DateUtil
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatterBuilder
+import java.util.concurrent.Callable
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoField
+import java.util.Locale
+import java.time.format.DateTimeFormatterBuilder
+import java.time.format.ResolverStyle
+import com.google.common.cache.CacheBuilder
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Date parser that uses scala extractors to handle the different formats.
@@ -15,6 +26,173 @@ import au.org.ala.biocache.util.DateUtil
 object DateParser {
 
   final val logger: Logger = LoggerFactory.getLogger("DateParser")
+
+  // TODO: Replace with Config.dateFormatCacheSize when finished testing
+  val dateFormatCache = CacheBuilder.newBuilder().maximumSize(10000).build[Tuple4[String, Boolean, Boolean, Boolean], DateTimeFormatter]()
+
+  def fromOffsetDateTime(toConvert: Option[OffsetDateTime]): Option[Date] = {
+    toConvert match {
+      case Some(toConvert) => {
+        Some(Date.from(toConvert.toInstant()))
+      }
+      case None => None
+    }
+  }
+  
+  def fromLocalDate(toConvert: Option[LocalDate]): Option[Date] = {
+    toConvert match {
+      case Some(toConvert) => {
+        Some(Date.from(toConvert.atStartOfDay(ZoneId.of("UTC")).toInstant()))
+      }
+      case None => None
+    }
+  }
+  
+  def localDateMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
+    try {
+      LocalDate.parse(dateValue, inputFormat)
+      true
+    } catch {
+      case _:Exception => false
+    }
+  }
+  
+  def offsetDateTimeMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
+    try {
+      OffsetDateTime.parse(dateValue, inputFormat)
+      true
+    } catch {
+      case _:Exception => false
+    }
+  }
+  
+  def newDateFormat(formatPattern: String, defaultMonth: Boolean = false, defaultDay: Boolean = false, appendOffsetParser: Boolean = false): DateTimeFormatter = {
+    
+    val cacheKey = (formatPattern, defaultMonth, defaultDay, appendOffsetParser)
+    
+    dateFormatCache.get(cacheKey, new Callable[DateTimeFormatter]() {
+      def call(): DateTimeFormatter = {
+        var builder = new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(formatPattern)
+        
+        if (appendOffsetParser) {
+          builder = appendOffsetParsing(builder)
+        }
+        
+        if (defaultMonth) {
+          builder = builder.parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+        }
+        
+        if (defaultDay) {
+          builder = builder.parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+        }
+        
+        builder.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
+      }
+    })
+  }
+  
+  def newTwoDigitYearDateFormat(formatPatternStart: String, formatPatternEnd: String, twoDigitYearCutoff: Int = 1920, defaultMonth: Boolean = false, defaultDay: Boolean = false, appendOffsetParser: Boolean = false): DateTimeFormatter = {
+    
+    val cacheKey = (formatPatternStart + "[uuuu][uu]" + formatPatternEnd, defaultMonth, defaultDay, appendOffsetParser)
+    dateFormatCache.get(cacheKey, new Callable[DateTimeFormatter]() {
+      def call(): DateTimeFormatter = {
+        var builder = new DateTimeFormatterBuilder().parseCaseInsensitive()
+        
+        if(!formatPatternStart.isEmpty()) {
+          builder = builder.appendPattern(formatPatternStart)
+        }
+        
+        // Transparently allow for two and four digit years, with a customisable cutoff year
+        builder = builder.optionalStart()
+            .appendPattern("uuuu")
+            .optionalEnd()
+            .optionalStart()
+            .appendValueReduced(ChronoField.YEAR, 2, 2, twoDigitYearCutoff)
+            .optionalEnd()
+            
+        if (!formatPatternEnd.isEmpty()) {
+          builder = builder.appendPattern(formatPatternEnd)
+        }
+            
+        if (appendOffsetParser) {
+          builder = appendOffsetParsing(builder)
+        }
+        
+        if (defaultMonth) {
+          builder = builder.parseDefaulting(ChronoField.MONTH_OF_YEAR, 1)
+        }
+        
+        if (defaultDay) {
+          builder = builder.parseDefaulting(ChronoField.DAY_OF_MONTH, 1)
+        }
+        
+        builder.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
+      }
+    })
+  }
+  
+  def appendDateParsing(formatter: DateTimeFormatterBuilder, optional: Boolean = false): DateTimeFormatterBuilder = {
+    var resultFormatter = formatter
+    if (optional) {
+      resultFormatter = resultFormatter.optionalStart()
+    }
+    resultFormatter = resultFormatter.append(DateTimeFormatter.ISO_LOCAL_DATE)
+    if (optional) {
+      resultFormatter = resultFormatter.optionalEnd()
+    }
+    resultFormatter
+  }
+  
+  def appendTimeParsing(formatter: DateTimeFormatterBuilder, optional: Boolean = true): DateTimeFormatterBuilder = {
+    var resultFormatter = formatter
+    if (optional) {
+      resultFormatter = resultFormatter.optionalStart()
+    }
+    resultFormatter = resultFormatter.append(DateTimeFormatter.ISO_LOCAL_TIME)
+    if (optional) {
+      resultFormatter = resultFormatter.optionalEnd()
+    }
+    resultFormatter
+  }
+  
+  def appendOffsetParsing(formatter: DateTimeFormatterBuilder): DateTimeFormatterBuilder = {
+    val resultFormatter = 
+      formatter.optionalStart().appendLiteral('T').optionalEnd()
+               .optionalStart().appendOffset("+HH:MM", "+00:00").optionalEnd()
+               .optionalStart().appendOffset("+HHMM", "+0000").optionalEnd()
+               .optionalStart().appendOffset("+HH", "Z").optionalEnd()
+    resultFormatter
+  }
+  
+  val YEAR_TO_LOCAL_DATE = newDateFormat("uuuu", true, true)
+  val YEAR_MONTH_TO_LOCAL_DATE = newDateFormat("uuuu-MM", false, true)
+  val YEAR = newDateFormat("uuuu")
+  val MONTH = newDateFormat("MM")
+  val DAY = newDateFormat("dd")
+  val SHORT_MONTH_HYPHEN_DAY = {
+    var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
+    result.appendPattern("M-d")
+    // Need to provide a default for the year or a LocalDate won't be created
+    result = result.parseDefaulting(ChronoField.YEAR, 1)
+    result.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
+  }
+  val OFFSET_DATE_OPTIONAL_TIME = { 
+    var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
+    result = appendDateParsing(result, false)
+    result = result.appendLiteral('T')
+    result = appendTimeParsing(result, true)
+    result = appendOffsetParsing(result)
+    result.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
+  }
+  val NON_ISO_OFFSET_DATE_OPTIONAL_TIME = { 
+    var result = new DateTimeFormatterBuilder().parseCaseInsensitive()
+    result = appendDateParsing(result, false)
+    // Alternative that uses an optional space character instead of the standard ISO "T" character
+    result = result.optionalStart().appendLiteral(' ').optionalEnd()
+    result = appendTimeParsing(result, true)
+    result = appendOffsetParsing(result)
+    result.toFormatter(Locale.US).withResolverStyle(ResolverStyle.STRICT)
+  }
 
   /**
     * Parse the supplied date string into an event date. This method catches errors and will return a None
@@ -72,11 +250,17 @@ object DateParser {
    */
   def parseStringToDate(date: String): Option[Date] = {
     try {
-      if(date == "")
+      if(date == "") {
         None
-      else
-        Some(DateUtils.parseDateStrictly(date,
-          Array("yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss","yyyy-MM-dd")))
+      } else if (offsetDateTimeMatches(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
+        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)))
+//        Some(DateUtils.parseDateStrictly(date,
+//          Array("yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss","yyyy-MM-dd")))
+      } else if (offsetDateTimeMatches(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)) {
+        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)))
+      } else {
+        None
+      }
     } catch {
       case _:Exception => None
     }
