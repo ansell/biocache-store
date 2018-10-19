@@ -19,6 +19,7 @@ import java.time.format.ResolverStyle
 import com.google.common.cache.CacheBuilder
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.LocalDateTime
 
 /**
  * Date parser that uses scala extractors to handle the different formats.
@@ -30,15 +31,6 @@ object DateParser {
   // TODO: Replace with Config.dateFormatCacheSize when finished testing
   val dateFormatCache = CacheBuilder.newBuilder().maximumSize(10000).build[Tuple4[String, Boolean, Boolean, Boolean], DateTimeFormatter]()
 
-  def fromOffsetDateTime(toConvert: Option[OffsetDateTime]): Option[Date] = {
-    toConvert match {
-      case Some(toConvert) => {
-        Some(Date.from(toConvert.toInstant()))
-      }
-      case None => None
-    }
-  }
-  
   def fromLocalDate(toConvert: Option[LocalDate]): Option[Date] = {
     toConvert match {
       case Some(toConvert) => {
@@ -48,9 +40,36 @@ object DateParser {
     }
   }
   
+  def fromLocalDateTime(toConvert: Option[LocalDateTime]): Option[Date] = {
+    toConvert match {
+      case Some(toConvert) => {
+        Some(Date.from(toConvert.atZone(ZoneId.of("UTC")).toInstant()))
+      }
+      case None => None
+    }
+  }
+  
+  def fromOffsetDateTime(toConvert: Option[OffsetDateTime]): Option[Date] = {
+    toConvert match {
+      case Some(toConvert) => {
+        Some(Date.from(toConvert.toInstant()))
+      }
+      case None => None
+    }
+  }
+  
   def localDateMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
     try {
       LocalDate.parse(dateValue, inputFormat)
+      true
+    } catch {
+      case _:Exception => false
+    }
+  }
+  
+  def localDateTimeMatches(dateValue: String, inputFormat: DateTimeFormatter): Boolean = {
+    try {
+      LocalDateTime.parse(dateValue, inputFormat)
       true
     } catch {
       case _:Exception => false
@@ -157,7 +176,7 @@ object DateParser {
   
   def appendOffsetParsing(formatter: DateTimeFormatterBuilder): DateTimeFormatterBuilder = {
     val resultFormatter = 
-      formatter.optionalStart().appendLiteral('T').optionalEnd()
+      formatter
                .optionalStart().appendOffset("+HH:MM", "+00:00").optionalEnd()
                .optionalStart().appendOffset("+HHMM", "+0000").optionalEnd()
                .optionalStart().appendOffset("+HH", "Z").optionalEnd()
@@ -252,17 +271,21 @@ object DateParser {
     try {
       if(date == "") {
         None
-      } else {
-        Some(DateUtils.parseDateStrictly(date,
-          Array("yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss","yyyy-MM-dd")))
-      }
-//      } else if (offsetDateTimeMatches(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
-//        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)))
-//      } else if (offsetDateTimeMatches(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)) {
-//        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)))
 //      } else {
-//        None
+//        Some(DateUtils.parseDateStrictly(date,
+//          Array("yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss","yyyy-MM-dd")))
 //      }
+      } else if (localDateMatches(date, DateTimeFormatter.ISO_LOCAL_DATE)) {
+        fromLocalDate(Some(LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)))
+      } else if (localDateTimeMatches(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME)) {
+        fromLocalDateTime(Some(LocalDateTime.parse(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
+      } else if (offsetDateTimeMatches(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
+        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)))
+      } else if (offsetDateTimeMatches(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)) {
+        fromOffsetDateTime(Some(OffsetDateTime.parse(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)))
+      } else {
+        None
+      }
     } catch {
       case _:Exception => None
     }
