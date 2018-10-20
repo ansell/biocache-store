@@ -342,13 +342,13 @@ object DateParser {
       case ISOWithMonthNameDate(date) => Some(date)
       case ISODateRange(date) => Some(date)
       case ISOVerboseDateTimeRange(date) => Some(date)
+      case ISOVerboseDateTime(date) => Some(date)
 //      case ISODayDateRange(date) => Some(date)
 //      case ISODayMonthRange(date)=>Some(date)
 //      case ISODateTimeRange(date) => Some(date)
 //      case ISOMonthDateRange(date) => Some(date)
 //      case ISOMonthYearDateRange(date) => Some(date)
 //      case ISOYearRange(date) => Some(date)
-//      case ISOVerboseDateTime(date) => Some(date)
 //      case NonISODateTime(date) => Some(date)
       case _ => None
     }
@@ -828,21 +828,35 @@ object ISODateTimeRange {
 /** Extractor for the format Fri Aug 12 15:19:20 EST 2011 */
 object ISOVerboseDateTime {
 
+  def baseFormats = Array("EEE MMM dd hh:mm:ss zzz uuuu","EEE MMM dd HH:mm:ss zzz uuuu")
+  
+  def formats = baseFormats
+  
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+
+  /**
+   * Extraction method
+   */
   def unapply(str: String): Option[EventDate] = {
     try {
-      val eventDateParsed = DateUtils.parseDateStrictly(str,
-        Array("EEE MMM dd hh:mm:ss zzz yyyy","EEE MMM dd HH:mm:ss zzz yyyy"))
+      val eventDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(str, parsedFormats)
+      
+      if (eventDateParsed.isDefined) {
+        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = eventDateSerialised
+        val endDate = eventDateSerialised
+        val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
+        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
+        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+        val eventDateLegacyClass = DateParser.fromLocalDate(eventDateParsed).get
 
-      val startYear, endYear = DateFormatUtils.format(eventDateParsed, "yyyy")
-      val startDate, endDate = DateFormatUtils.format(eventDateParsed, "yyyy-MM-dd")
-      val startDay, endDay = DateFormatUtils.format(eventDateParsed, "dd")
-      val startMonth, endMonth = DateFormatUtils.format(eventDateParsed, "MM")
-
-      Some(EventDate(eventDateParsed, startDate, startDay, startMonth, startYear,
-        eventDateParsed, endDate, endDay, endMonth: String, endYear, true))
-
+        Some(EventDate(eventDateLegacyClass, startDate, startDay, startMonth, startYear, eventDateLegacyClass, endDate, endDay,
+          endMonth: String, endYear, true))
+      } else {
+        None
+      }
     } catch {
-      case e: ParseException => None
+      case e: Exception => None
     }
   }
 }
