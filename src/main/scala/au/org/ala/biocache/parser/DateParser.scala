@@ -308,6 +308,8 @@ object DateParser {
       } else if (localDateTimeMatches(date, DateTimeFormatter.ISO_LOCAL_DATE_TIME)) {
         // Add 'Z' to the original string so LocalDateTime instances are parsed as if they were all in UTC
         fromZonedDateTime(Some(ZonedDateTime.parse(date + "Z", DateTimeFormatter.ISO_DATE_TIME)))
+      } else if (localDateTimeMatches(date, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)) {
+        fromZonedDateTime(Some(ZonedDateTime.parse(date + "Z", DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)))
       } else if (zonedDateTimeMatches(date, DateTimeFormatter.ISO_DATE_TIME)) {
         fromZonedDateTime(Some(ZonedDateTime.parse(date, DateTimeFormatter.ISO_DATE_TIME)))
       } else if (offsetDateTimeMatches(date, DateParser.OFFSET_DATE_OPTIONAL_TIME)) {
@@ -343,13 +345,13 @@ object DateParser {
       case ISODateRange(date) => Some(date)
       case ISOVerboseDateTimeRange(date) => Some(date)
       case ISOVerboseDateTime(date) => Some(date)
+//      case NonISODateTime(date) => Some(date)
 //      case ISODayDateRange(date) => Some(date)
 //      case ISODayMonthRange(date)=>Some(date)
 //      case ISODateTimeRange(date) => Some(date)
 //      case ISOMonthDateRange(date) => Some(date)
 //      case ISOMonthYearDateRange(date) => Some(date)
 //      case ISOYearRange(date) => Some(date)
-//      case NonISODateTime(date) => Some(date)
       case _ => None
     }
   }
