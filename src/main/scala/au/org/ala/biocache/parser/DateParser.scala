@@ -337,18 +337,18 @@ object DateParser {
 
     date match {
       case ISOSingleDate(date) => Some(date)
-//      case ISOSingleYear(date) => Some(date)
-//      case ISOWithMonthNameDate(date) => Some(date)
-//      case ISODateRange(date) => Some(date)
+      case ISOSingleYear(date) => Some(date)
+      case ISOMonthDate(date) => Some(date)
+      case ISOWithMonthNameDate(date) => Some(date)
+      case ISODateRange(date) => Some(date)
+      case ISOVerboseDateTimeRange(date) => Some(date)
 //      case ISODayDateRange(date) => Some(date)
 //      case ISODayMonthRange(date)=>Some(date)
 //      case ISODateTimeRange(date) => Some(date)
-//      case ISOMonthDate(date) => Some(date)
 //      case ISOMonthDateRange(date) => Some(date)
 //      case ISOMonthYearDateRange(date) => Some(date)
 //      case ISOYearRange(date) => Some(date)
 //      case ISOVerboseDateTime(date) => Some(date)
-//      case ISOVerboseDateTimeRange(date) => Some(date)
 //      case NonISODateTime(date) => Some(date)
       case _ => None
     }
@@ -460,49 +460,84 @@ object NonISODateTime {
   }
 }
 
-/** Extractor for the format yyyy-MM-dd */
+/** Extractor for the format uuuu-MM-dd */
 object ISOWithMonthNameDate {
+
+
+  def baseFormats = Array("uuuu-MMMM-dd", "uuuu-MMMM-dd'T'hh:mm:ss", "uuuu-MMMM-dd'T'hh:mm-ss", "uuuu-MMMM-dd'T'HH:mm-ss", "uuuu-MMMM-dd'T'hh:mm'Z'", "uuuu-MMMM-dd'T'HH:mm'Z'")
+  //def baseFormats = Array("uuuu-MMMM-dd")
+
+  def baseParseOffsets = false
+  
+  def formats = baseFormats
+
+  def parseOffsets = baseParseOffsets
+
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f, false, false, true))
 
   /**
    * Extraction method
    */
   def unapply(str: String): Option[EventDate] = {
     try {
-      val eventDateParsed = DateUtils.parseDateStrictly(str,
-        Array("yyyy-MMMMM-dd", "yyyy-MMMMM-dd'T'hh:mm-ss", "yyyy-MMMMM-dd'T'HH:mm-ss", "yyyy-MMMMM-dd'T'hh:mm'Z'", "yyyy-MMMMM-dd'T'HH:mm'Z'"))
+      val eventDateParsed: Option[LocalDate] = DateParser.parseByFormat(str, parsedFormats)
+      
+      if (eventDateParsed.isDefined) {
+        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = eventDateSerialised
+        val endDate = eventDateSerialised
+        val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
+        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
+        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+        val eventDateLegacyClass = DateParser.fromLocalDate(eventDateParsed).get
 
-      val startDate, endDate = DateFormatUtils.format(eventDateParsed, "yyyy-MM-dd")
-      val startDay, endDay = DateFormatUtils.format(eventDateParsed, "dd")
-      val startMonth, endMonth = DateFormatUtils.format(eventDateParsed, "MM")
-      val startYear, endYear = DateFormatUtils.format(eventDateParsed, "yyyy")
-
-      Some(EventDate(eventDateParsed, startDate, startDay, startMonth, startYear, eventDateParsed,  endDate, endDay,
-        endMonth: String, endYear, true))
+        Some(EventDate(eventDateLegacyClass, startDate, startDay, startMonth, startYear, eventDateLegacyClass, endDate, endDay,
+          endMonth: String, endYear, true))
+      } else {
+        None
+      }
     } catch {
-      case e: ParseException => None
+      case e: Exception => None
     }
   }
 }
 
-/** Extractor for the format yyyy-MM-dd */
+/** Extractor for the format uuuu */
 object ISOSingleYear {
 
-  def formats = Array("yyyy", "yyyy-00-00")
+  def baseFormats = Array("uuuu")
+  
+  def baseParseOffsets = false
+  
+  def formats = baseFormats
+  
+  def parseOffsets = baseParseOffsets
 
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f, true, true, parseOffsets))
+  
   /**
    * Extraction method
    */
   def unapply(str: String): Option[EventDate] = {
     try {
-      val eventDateParsed = DateUtils.parseDateStrictly(str,formats)
-      val startYear, endYear = DateFormatUtils.format(eventDateParsed, "yyyy")
-      val startDate, endDate = ""
-      val startDay, endDay = ""
-      val startMonth, endMonth = ""
-      Some(EventDate(eventDateParsed, startDate, startDay, startMonth, startYear, eventDateParsed, endDate, endDay,
-        endMonth: String, endYear, false))
+      val eventDateParsed: Option[LocalDate] = DateParser.parseByFormat(str, parsedFormats)
+      
+      if (eventDateParsed.isDefined) {
+        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = eventDateSerialised
+        val endDate = eventDateSerialised
+        val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
+        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
+        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+        val eventDateLegacyClass = DateParser.fromLocalDate(eventDateParsed).get
+
+        Some(EventDate(eventDateLegacyClass, startDate, startDay, startMonth, startYear, eventDateLegacyClass, endDate, endDay,
+          endMonth: String, endYear, false))
+      } else {
+        None
+      }
     } catch {
-      case e: ParseException => None
+      case e: Exception => None
     }
   }
 }
@@ -541,7 +576,7 @@ class SingleDate {
         None
       }
     } catch {
-      case e: ParseException => None
+      case e: Exception => None
     }
   }
 }
@@ -600,58 +635,108 @@ object NonISODateRange extends NonISODateRange
 
 //object NonISOTruncatedYearDate extends SingleDate with NonISOTruncatedYear
 
-/** Extractor for the format yyyy-MM-dd */
+/** Extractor for the format uuuu-MM */
 object ISOMonthDate {
+
+  def baseFormats = Array("uuuu-MM", "uuuu-MM-", "MM uuuu", "MMM-uuuu", "uuuu-MM-00")
+  
+  def formats = baseFormats
+  
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f, false, true))
 
   /**
    * Extraction method
    */
   def unapply(str: String): Option[EventDate] = {
     try {
-      val eventDateParsed = DateUtils.parseDateStrictly(str,
-        Array("yyyy-MM", "yyyy-MM-", "MM yyyy", "MMM-yyyy", "yyyy-MM-00"))
+      val eventDateParsed: Option[LocalDate] = DateParser.parseByFormat(str, parsedFormats)
+      
+      if (eventDateParsed.isDefined) {
+        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = eventDateSerialised
+        val endDate = eventDateSerialised
+        val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
+        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
+        // Ignore day as it is defaulted in all of the patterns for this parser
+        val startDay, endDay = ""
+        val eventDateLegacyClass = DateParser.fromLocalDate(eventDateParsed).get
 
-      val startDate, endDate = ""
-      val startDay, endDay = ""
-      val startMonth, endMonth = DateFormatUtils.format(eventDateParsed, "MM")
-      val startYear, endYear = DateFormatUtils.format(eventDateParsed, "yyyy")
-
-      Some(EventDate(eventDateParsed, startDate, startDay, startMonth, startYear, eventDateParsed, endDate, endDay,
-        endMonth: String, endYear, true))
+        // Note: The singleDate flag is not used as expected here, it has a specific purpose for EventProcessor.reformatToPrecision
+        Some(EventDate(eventDateLegacyClass, startDate, startDay, startMonth, startYear, eventDateLegacyClass, endDate, endDay,
+          endMonth: String, endYear, true))
+      } else {
+        None
+      }
     } catch {
-      case e: ParseException => None
+      case e: Exception => None
     }
   }
 }
 
 object ISODateRange extends DateRange
 
-/** Extractor for the format yyyy-MM-dd/yyyy-MM-dd */
+/** Extractor for the format uuuu-MM-dd/uuuu-MM-dd */
 class DateRange {
 
-  def baseFormats = Array("yyyy-MM-dd", "yyyy-MM-dd'T'hh:mm-ss", "yyyy-MM-dd'T'HH:mm-ss", "yyyy-MM-dd'T'hh:mm'Z'", "yyyy-MM-dd'T'HH:mm'Z'")
+  def baseFormats = Array("uuuu-MM-dd", "uuuu-M-d", "uuuu-MM-dd'T'hh:mm-ss", "uuuu-MM-dd'T'HH:mm-ss", "uuuu-MM-dd'T'hh:mm'Z'", "uuuu-MM-dd'T'HH:mm'Z'")
 
+  def formats = baseFormats
+  
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f)) ++ Array(DateParser.OFFSET_DATE_OPTIONAL_TIME, DateParser.YEAR_MONTH_TO_LOCAL_DATE, DateParser.YEAR_TO_LOCAL_DATE, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)
+  
   def unapply(str: String): Option[EventDate] = {
     try {
 
       val parts = ParseUtil.splitRange(str)
       if (parts.length != 2) return None
-      val startDateParsed = DateUtils.parseDateStrictly(parts(0), baseFormats)
-      val endDateParsed = DateUtils.parseDateStrictly(parts(1), baseFormats)
+      val startDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(0), parsedFormats)
+      // Additionally support two digit years for the end date
+      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats ++ Array(DateParser.newTwoDigitYearDateFormat("", "", 1920, true, true, true)))
 
-      val startDate = DateFormatUtils.format(startDateParsed, "yyyy-MM-dd")
-      val endDate = DateFormatUtils.format(endDateParsed, "yyyy-MM-dd")
-      val startDay = DateFormatUtils.format(startDateParsed, "dd")
-      val endDay = DateFormatUtils.format(endDateParsed, "dd")
-      val startMonth = DateFormatUtils.format(startDateParsed, "MM")
-      val endMonth = DateFormatUtils.format(endDateParsed, "MM")
-      val startYear = DateFormatUtils.format(startDateParsed, "yyyy")
-      val endYear = DateFormatUtils.format(endDateParsed, "yyyy")
-
-      Some(EventDate(startDateParsed, startDate, startDay, startMonth, startYear, endDateParsed, endDate, endDay,
-        endMonth: String, endYear, startDate.equals(endDate)))
+      if (startDateParsed.isDefined) {
+        val startDateSerialised = startDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = startDateSerialised
+        val startYear = startDateParsed.get.format(DateParser.YEAR)
+        val startMonth = startDateParsed.get.format(DateParser.MONTH)
+        val startDay = startDateParsed.get.format(DateParser.DAY)
+        val startEventDateLegacyClass = DateParser.fromLocalDate(startDateParsed).get
+        var endDate = ""
+        var endYear = startYear
+        var endMonth = startMonth
+        var endDay = startDay
+        if(endDateParsed.isDefined) {
+          endYear = endDateParsed.get.format(DateParser.YEAR)
+          endMonth = endDateParsed.get.format(DateParser.MONTH)
+          endDay = endDateParsed.get.format(DateParser.DAY)
+          endDate = LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), Integer.parseInt(endDay)).format(DateTimeFormatter.ISO_LOCAL_DATE)
+          val endEventDateLegacyClass = DateParser.fromLocalDate(endDateParsed).get
+          
+          Some(EventDate(startEventDateLegacyClass, startDate, startDay, startMonth, startYear, endEventDateLegacyClass, endDate, endDay,
+            endMonth: String, endYear, startDate.equals(endDate)))
+        } else {
+          // Last resort to support the uuuu-MM-dd/M-d pattern
+          val backupEndDateParsed = DateParser.parseByFormat(parts(1), Array(DateParser.SHORT_MONTH_HYPHEN_DAY))
+          if(backupEndDateParsed.isDefined) {
+            // Dummy year inserted in the SHORT_MONTH_HYPHEN_DAY parser, so substitute it with the startyear
+            endYear = startYear
+            endMonth = backupEndDateParsed.get.format(DateParser.MONTH)
+            endDay = backupEndDateParsed.get.format(DateParser.DAY)
+            // The backupEndDateParsed does not have a valid year value, so we can't expose it
+            val endDateReparsed = LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), Integer.parseInt(endDay))
+            endDate = endDateReparsed.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            val endEventDateLegacyClass = DateParser.fromLocalDate(Some(endDateReparsed)).get
+            
+            Some(EventDate(startEventDateLegacyClass, startDate, startDay, startMonth, startYear, endEventDateLegacyClass, endDate, endDay,
+              endMonth: String, endYear, startDate.equals(endDate)))
+          } else {
+            None
+          }
+        }
+      } else {
+        None
+      }
     } catch {
-      case e: ParseException => None
+      case e: Exception => None
     }
   }
 }
@@ -765,28 +850,48 @@ object ISOVerboseDateTime {
 /** Extractor for the format Mon Apr 23 00:00:00 EST 1984/Sun Apr 29 00:00:00 EST 1984 */
 object ISOVerboseDateTimeRange {
 
+  def baseFormats = Array("EEE MMM dd hh:mm:ss zzz uuuu","EEE MMM dd HH:mm:ss zzz uuuu")
+
+  def formats = baseFormats
+  
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+
   def unapply(str: String): Option[EventDate] = {
     try {
       val parts = ParseUtil.splitRange(str)
       if (parts.length != 2) return None
-      val startDateParsed = DateUtils.parseDateStrictly(parts(0),
-        Array("EEE MMM dd hh:mm:ss zzz yyyy","EEE MMM dd HH:mm:ss zzz yyyy"))
-      val endDateParsed = DateUtils.parseDateStrictly(parts(1),
-        Array("EEE MMM dd hh:mm:ss zzz yyyy","EEE MMM dd HH:mm:ss zzz yyyy"))
+      val startDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(0), parsedFormats)
+      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats)
 
-      val startDate = DateFormatUtils.format(startDateParsed, "yyyy-MM-dd")
-      val endDate = DateFormatUtils.format(endDateParsed, "yyyy-MM-dd")
-      val startDay = DateFormatUtils.format(startDateParsed, "dd")
-      val endDay = DateFormatUtils.format(endDateParsed, "dd")
-      val startMonth = DateFormatUtils.format(startDateParsed, "MM")
-      val endMonth = DateFormatUtils.format(endDateParsed, "MM")
-      val startYear = DateFormatUtils.format(startDateParsed, "yyyy")
-      val endYear = DateFormatUtils.format(endDateParsed, "yyyy")
-
-      Some(EventDate(startDateParsed, startDate, startDay, startMonth, startYear,
-        endDateParsed, endDate, endDay, endMonth: String, endYear, startDate.equals(endDate)))
+      if (startDateParsed.isDefined) {
+        val startDateSerialised = startDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = startDateSerialised
+        val startYear = startDateParsed.get.format(DateParser.YEAR)
+        val startMonth = startDateParsed.get.format(DateParser.MONTH)
+        val startDay = startDateParsed.get.format(DateParser.DAY)
+        val startEventDateLegacyClass = DateParser.fromLocalDate(startDateParsed).get
+        var endDate = ""
+        var endYear = ""
+        var endMonth = ""
+        var endDay = ""
+        if(endDateParsed.isDefined) {
+          val endDateSerialised = endDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+          endDate = endDateSerialised
+          endYear = endDateParsed.get.format(DateParser.YEAR)
+          endMonth = endDateParsed.get.format(DateParser.MONTH)
+          endDay = endDateParsed.get.format(DateParser.DAY)
+          val endEventDateLegacyClass = DateParser.fromLocalDate(endDateParsed).get
+          
+          Some(EventDate(startEventDateLegacyClass, startDate, startDay, startMonth, startYear, endEventDateLegacyClass, endDate, endDay,
+            endMonth: String, endYear, startDate.equals(endDate)))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
     } catch {
-      case e: ParseException => None
+      case e: Exception => None
     }
   }
 }
@@ -893,12 +998,19 @@ object ISOYearRange {
   }
 }
 
+
 object ParseUtil {
-  def splitRange(str:String) = if(str.contains("&")){
-    str.split("&").map(_.trim)
-  } else if (str.contains("to")){
-    str.split("to").map(_.trim)
-  } else {
-    str.split("/").map(_.trim)
+  /**
+   * Split textual or ISO range separators, trim, and removing any trailing dashes '-'
+   */
+  def splitRange(str:String) = {
+    if(str.contains("&")){
+      str.split("&").map(_.trim).map(s => if (s.endsWith("-")) { s.substring(0, s.length() - 1) } else { s })
+    } else if (str.contains("to")){
+      // FIXME: This will match "October"
+      str.split("to").map(_.trim).map(s => if (s.endsWith("-")) { s.substring(0, s.length() - 1) } else { s })
+    } else {
+      str.split("/").map(_.trim).map(s => if (s.endsWith("-")) { s.substring(0, s.length() - 1) } else { s })
+    }
   }
 }
