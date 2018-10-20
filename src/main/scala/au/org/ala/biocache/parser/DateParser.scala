@@ -554,8 +554,42 @@ trait NonISODateRange extends DateRange {
   override def baseFormats = Array("dd-MM-yyyy","dd/MM/yyyy","dd-MMM-yyyy","dd/MMM/yyyy","dd MMM yyyy")
 }
 
-trait NonISOTruncatedYear extends SingleDate {
-  override def baseFormats = Array("dd-MM-yy","dd/MM/yy")
+object NonISOTruncatedYearDate {
+  def baseFormats = Array(("dd-MM-", ""), ("dd/MM/", ""))
+
+//  2001-03-14T00:00:00+11:00
+  def formats = baseFormats.map(f => Array(f, (f._1, f._2 + "'Z'"), (f._1, f._2 + "'T'hh:mm'Z'"), (f._1, f._2 + "'T'HH:mm'Z'"), (f._1, f._2 + "'T'hh:mm:ss"), (f._1, f._2 + "'T'HH:mm:ss"), (f._1, f._2 + "'T'hh:mm:ss'Z'"), (f._1, f._2 + "'T'HH:mm:ss'Z'"), (f._1, f._2 + " hh:mm:ss"), (f._1, f._2 + " HH:mm:ss"))).flatten
+
+  def parsedFormats = formats.map(f => DateParser.newTwoDigitYearDateFormat(f._1, f._2))
+  
+  /**
+   * Extraction method
+   */
+  def unapply(str: String): Option[EventDate] = {
+    try {
+      // Parse everything down to a LocalDate if possible
+      // Checks the ISO date formats before checking the custom formats
+      val eventDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(str, parsedFormats)
+      
+      if (eventDateParsed.isDefined) {
+        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = eventDateSerialised
+        val endDate = eventDateSerialised
+        val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
+        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
+        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+        val eventDateLegacyClass = DateParser.fromLocalDate(eventDateParsed).get
+
+        Some(EventDate(eventDateLegacyClass, startDate, startDay, startMonth, startYear, eventDateLegacyClass, endDate, endDay,
+          endMonth: String, endYear, true))
+      } else {
+        None
+      }
+    } catch {
+      case e: Exception => None
+    }
+  }
+
 }
 
 object ISOSingleDate extends SingleDate
@@ -564,7 +598,7 @@ object NonISOSingleDate extends NonISOSingleDate
 
 object NonISODateRange extends NonISODateRange
 
-object NonISOTruncatedYearDate extends SingleDate with NonISOTruncatedYear
+//object NonISOTruncatedYearDate extends SingleDate with NonISOTruncatedYear
 
 /** Extractor for the format yyyy-MM-dd */
 object ISOMonthDate {
