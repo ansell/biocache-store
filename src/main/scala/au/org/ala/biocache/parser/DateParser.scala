@@ -338,8 +338,8 @@ object DateParser {
   def parseISODate(date: String): Option[EventDate] = {
 
     date match {
-      case ISOSingleDate(date) => Some(date)
       case ISOSingleYear(date) => Some(date)
+      case ISOSingleDate(date) => Some(date)
       case ISOMonthDate(date) => Some(date)
       case ISOWithMonthNameDate(date) => Some(date)
       case ISODateRange(date) => Some(date)
@@ -529,8 +529,8 @@ object ISOSingleYear {
         val startDate = eventDateSerialised
         val endDate = eventDateSerialised
         val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
-        val startMonth, endMonth = eventDateParsed.get.format(DateParser.MONTH)
-        val startDay, endDay = eventDateParsed.get.format(DateParser.DAY)
+        val startMonth, endMonth = ""
+        val startDay, endDay = ""
         val eventDateLegacyClass = DateParser.fromLocalDate(eventDateParsed).get
 
         Some(EventDate(eventDateLegacyClass, startDate, startDay, startMonth, startYear, eventDateLegacyClass, endDate, endDay,
@@ -552,7 +552,8 @@ class SingleDate {
 //  2001-03-14T00:00:00+11:00
   def formats = baseFormats.map(f => Array(f, f + "'Z'", f + "'T'hh:mm'Z'",f + "'T'HH:mm'Z'", f + "'T'hh:mm:ss",f + "'T'HH:mm:ss", f + "'T'hh:mm:ss'Z'", f + "'T'HH:mm:ss'Z'",f + " hh:mm:ss",f + " HH:mm:ss")).flatten
 
-  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+//  def parsedFormats = formats.map(f => DateParser.newDateFormat(f))
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f)) ++ Array(DateParser.OFFSET_DATE_OPTIONAL_TIME, DateParser.YEAR_MONTH_TO_LOCAL_DATE, DateParser.YEAR_TO_LOCAL_DATE, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)
 
   /**
    * Extraction method
