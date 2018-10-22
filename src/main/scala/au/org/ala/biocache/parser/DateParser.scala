@@ -339,8 +339,8 @@ object DateParser {
 
     date match {
       case ISOSingleYear(date) => Some(date)
-      case ISOSingleDate(date) => Some(date)
       case ISOMonthDate(date) => Some(date)
+      case ISOSingleDate(date) => Some(date)
       case ISOWithMonthNameDate(date) => Some(date)
       case ISODateRange(date) => Some(date)
       case ISOVerboseDateTimeRange(date) => Some(date)
@@ -432,6 +432,7 @@ object DateParser {
     }
     eventDateParsed
   }
+
 }
 
 case class EventDate(parsedStartDate: Date, startDate: String, startDay: String, startMonth: String, startYear: String,
@@ -458,6 +459,7 @@ object NonISODateTime {
         endMonth: String, endYear, true))
     } catch {
       case e: ParseException => None
+      
     }
   }
 }
@@ -525,7 +527,7 @@ object ISOSingleYear {
       val eventDateParsed: Option[LocalDate] = DateParser.parseByFormat(str, parsedFormats)
       
       if (eventDateParsed.isDefined) {
-        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val eventDateSerialised = eventDateParsed.get.format(DateParser.YEAR)
         val startDate = eventDateSerialised
         val endDate = eventDateSerialised
         val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
@@ -655,7 +657,7 @@ object ISOMonthDate {
       val eventDateParsed: Option[LocalDate] = DateParser.parseByFormat(str, parsedFormats)
       
       if (eventDateParsed.isDefined) {
-        val eventDateSerialised = eventDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val eventDateSerialised = eventDateParsed.get.format(DateParser.YEAR_MONTH_TO_LOCAL_DATE)
         val startDate = eventDateSerialised
         val endDate = eventDateSerialised
         val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)

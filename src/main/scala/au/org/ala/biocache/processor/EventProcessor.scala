@@ -322,7 +322,7 @@ class EventProcessor extends Processor {
 
           //although check that combined year-month-day isnt in the future
           if (day != 0 && month != 0) {
-            val date = DateUtils.parseDate(year.toString + String.format("%02d", int2Integer(month)) + day.toString, Array("yyyyMMdd"))
+            val date = DateUtils.parseDate(year.toString + String.format("%02d", int2Integer(month)) + day.toString, Array("uuuuMMdd"))
             if (date.after(new Date())) {
               year -= 100
             }
@@ -472,35 +472,35 @@ class EventProcessor extends Processor {
         processed.event.datePrecision = term.canonical
 
         if (term.canonical.equalsIgnoreCase(DAY_PRECISION)){
-          //is the processed date in yyyy-MM format
-          reformatToPrecision(processed, "yyyy-MM-dd", false, false, false)
+          //is the processed date in uuuu-MM format
+          reformatToPrecision(processed, "uuuu-MM-dd", false, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(MONTH_PRECISION)){
-          //is the processed date in yyyy-MM format
-          reformatToPrecision(processed, "yyyy-MM", true, false, false)
+          //is the processed date in uuuu-MM format
+          reformatToPrecision(processed, "uuuu-MM", true, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(YEAR_PRECISION)){
-          //is the processed date in yyyy format
-          reformatToPrecision(processed, "yyyy", true, true, false)
+          //is the processed date in uuuu format
+          reformatToPrecision(processed, "uuuu", true, true, false)
         }
         else if (term.canonical.equalsIgnoreCase(DAY_RANGE_PRECISION)){
-          //is the processed date in yyyy-MM format
-          reformatToPrecision(processed, "yyyy-MM", false, false, false)
+          //is the processed date in uuuu-MM format
+          reformatToPrecision(processed, "uuuu-MM", false, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(MONTH_RANGE_PRECISION)){
-          //is the processed date in yyyy-MM format
-          reformatToPrecision(processed, "yyyy-MM", true, false, false)
+          //is the processed date in uuuu-MM format
+          reformatToPrecision(processed, "uuuu-MM", true, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(YEAR_RANGE_PRECISION)){
-          //is the processed date in yyyy format
-          reformatToPrecision(processed, "yyyy", true, true, true)
+          //is the processed date in uuuu format
+          reformatToPrecision(processed, "uuuu", true, true, true)
         }
         else {
-          reformatToPrecision(processed, "yyyy-MM-dd", false, false, false)
+          reformatToPrecision(processed, "uuuu-MM-dd", false, false, false)
         }
       }
     } else {
-      reformatToPrecision(processed, "yyyy-MM-dd", false, false, false)
+      reformatToPrecision(processed, "uuuu-MM-dd", false, false, false)
     }
   }
 
