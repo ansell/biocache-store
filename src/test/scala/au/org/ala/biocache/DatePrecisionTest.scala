@@ -76,7 +76,7 @@ class DatePrecisionTest extends FunSuite {
     expectResult("2000"){ p.event.eventDate  }
   }
 
-  test("2000-01-01 with year precision - 'year'"){
+  test("2000-01-01 with year precision - 'YEAR'"){
     val e = new EventProcessor
     val r = new FullRecord
     val p = new FullRecord

@@ -213,6 +213,7 @@ object DateParser {
   
   val YEAR_TO_LOCAL_DATE = newDateFormat("uuuu", true, true)
   val YEAR_MONTH_TO_LOCAL_DATE = newDateFormat("uuuu-MM", false, true)
+  val YEAR_MONTH = newDateFormat("uuuu-MM")
   val YEAR = newDateFormat("uuuu")
   val MONTH = newDateFormat("MM")
   val DAY = newDateFormat("dd")
@@ -657,7 +658,7 @@ object ISOMonthDate {
       val eventDateParsed: Option[LocalDate] = DateParser.parseByFormat(str, parsedFormats)
       
       if (eventDateParsed.isDefined) {
-        val eventDateSerialised = eventDateParsed.get.format(DateParser.YEAR_MONTH_TO_LOCAL_DATE)
+        val eventDateSerialised = eventDateParsed.get.format(DateParser.YEAR_MONTH)
         val startDate = eventDateSerialised
         val endDate = eventDateSerialised
         val startYear, endYear = eventDateParsed.get.format(DateParser.YEAR)
@@ -666,7 +667,7 @@ object ISOMonthDate {
         val startDay, endDay = ""
         val eventDateLegacyClass = DateParser.fromLocalDate(eventDateParsed).get
 
-        // Note: The singleDate flag is not used as expected here, it has a specific purpose for EventProcessor.reformatToPrecision
+        // Note: The singleDate flag is not used as expected here, it must be true to fit the current logic in EventProcessor.reformatToPrecision
         Some(EventDate(eventDateLegacyClass, startDate, startDay, startMonth, startYear, eventDateLegacyClass, endDate, endDay,
           endMonth: String, endYear, true))
       } else {

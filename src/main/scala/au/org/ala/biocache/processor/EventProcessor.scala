@@ -467,40 +467,41 @@ class EventProcessor extends Processor {
 
     if(StringUtils.isNotBlank(raw.event.datePrecision) && StringUtils.isNotBlank(processed.event.eventDate)) {
       val matchedTerm = DatePrecision.matchTerm(raw.event.datePrecision)
-      if (!matchedTerm.isEmpty) {
+      if (matchedTerm.isDefined) {
         val term = matchedTerm.get
         processed.event.datePrecision = term.canonical
+        logger.info("raw datePrecision was: " + raw.event.datePrecision + ", Canonical datePrecision was: " + term.canonical)
 
         if (term.canonical.equalsIgnoreCase(DAY_PRECISION)){
           //is the processed date in uuuu-MM format
-          reformatToPrecision(processed, "uuuu-MM-dd", false, false, false)
+          reformatToPrecision(processed, "yyyy-MM-dd", false, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(MONTH_PRECISION)){
           //is the processed date in uuuu-MM format
-          reformatToPrecision(processed, "uuuu-MM", true, false, false)
+          reformatToPrecision(processed, "yyyy-MM", true, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(YEAR_PRECISION)){
           //is the processed date in uuuu format
-          reformatToPrecision(processed, "uuuu", true, true, false)
+          reformatToPrecision(processed, "yyyy", true, true, false)
         }
         else if (term.canonical.equalsIgnoreCase(DAY_RANGE_PRECISION)){
           //is the processed date in uuuu-MM format
-          reformatToPrecision(processed, "uuuu-MM", false, false, false)
+          reformatToPrecision(processed, "yyyy-MM", false, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(MONTH_RANGE_PRECISION)){
           //is the processed date in uuuu-MM format
-          reformatToPrecision(processed, "uuuu-MM", true, false, false)
+          reformatToPrecision(processed, "yyyy-MM", true, false, false)
         }
         else if (term.canonical.equalsIgnoreCase(YEAR_RANGE_PRECISION)){
           //is the processed date in uuuu format
-          reformatToPrecision(processed, "uuuu", true, true, true)
+          reformatToPrecision(processed, "yyyy", true, true, true)
         }
         else {
-          reformatToPrecision(processed, "uuuu-MM-dd", false, false, false)
+          reformatToPrecision(processed, "yyyy-MM-dd", false, false, false)
         }
       }
     } else {
-      reformatToPrecision(processed, "uuuu-MM-dd", false, false, false)
+      reformatToPrecision(processed, "yyyy-MM-dd", false, false, false)
     }
   }
 
@@ -519,24 +520,24 @@ class EventProcessor extends Processor {
     val startDate = DateParser.parseDate(processed.event.eventDate)
     val endDate = DateParser.parseDate(processed.event.eventDateEnd)
 
-    if(!startDate.isEmpty) {
+    if(startDate.isDefined) {
 
       if (startDate.get.singleDate && startDate.get.parsedStartDate != null) {
         try {
           processed.event.eventDate = DateFormatUtils.format(startDate.get.parsedStartDate, format)
         } catch {
-          case e: Exception => logger.error("Problem reformatting date to new precision")
+          case e: Exception => logger.error("Problem reformatting date to new precision", e)
         }
       }
     }
 
-    if(!endDate.isEmpty) {
+    if(endDate.isDefined) {
 
       if (endDate.get.singleDate && endDate.get.parsedStartDate != null) {
         try {
           processed.event.eventDateEnd = DateFormatUtils.format(endDate.get.parsedStartDate, format)
         } catch {
-          case e: Exception => logger.error("Problem reformatting date to new precision")
+          case e: Exception => logger.error("Problem reformatting date to new precision", e)
         }
       }
     }
@@ -554,7 +555,7 @@ class EventProcessor extends Processor {
 
     var determinedDatePrecision = ""
 
-    if(!startDate.isEmpty && !endDate.isEmpty) {
+    if(startDate.isDefined && endDate.isDefined) {
 
       //ranges - nullify if not equal
       if (StringUtils.isNotEmpty(startDate.get.startDay) && StringUtils.isNotEmpty(endDate.get.startDay) && startDate.get.startDay != endDate.get.startDay) {
@@ -574,7 +575,7 @@ class EventProcessor extends Processor {
     // attempt to calculate a date precision based on the values
     if (StringUtils.isEmpty(processed.event.datePrecision)){
       //do we have a range
-      if(!startDate.isEmpty && !endDate.isEmpty) {
+      if(startDate.isDefined && endDate.isDefined) {
         determinedDatePrecision = DAY_RANGE_PRECISION //assume day range precision, then downgrade as required
 
         if(startDate.get.startDay == endDate.get.startDay && StringUtils.isNotEmpty(startDate.get.startDay)
