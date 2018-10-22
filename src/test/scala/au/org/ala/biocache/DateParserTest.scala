@@ -363,10 +363,44 @@ class DateParserTest extends FunSuite {
     expectResult(true){result.get.singleDate}
   }
 
-  test("Invalid date ranges"){
+  test("2000-02-29"){
+      val result = DateParser.parseDate("2000-02-29")
+      expectResult(false){ result.isEmpty }
+      expectResult("2000"){ result.get.startYear }
+      expectResult("02"){ result.get.startMonth }
+      expectResult("29"){ result.get.startDay }
+      expectResult("2000"){ result.get.endYear }
+      expectResult("02"){ result.get.endMonth }
+      expectResult("29"){ result.get.endDay }
+      expectResult(true){ result.get.singleDate }
+  }
+
+  test("2012-02-29"){
+      val result = DateParser.parseDate("2012-02-29")
+      expectResult(false){ result.isEmpty }
+      expectResult("2012"){ result.get.startYear }
+      expectResult("02"){ result.get.startMonth }
+      expectResult("29"){ result.get.startDay }
+      expectResult("2012"){ result.get.endYear }
+      expectResult("02"){ result.get.endMonth }
+      expectResult("29"){ result.get.endDay }
+      expectResult(true){ result.get.singleDate }
+  }
+
+  test("Invalid date: Feb 29 Non-Leap year"){
     expectResult(None){DateParser.parseDate("2014-02-29")}
+  }
+  
+  test("Invalid date month 13"){
     expectResult(None){DateParser.parseDate("2013-13-01")}
+  }
+  
+  test("Invalid date month 23"){
     expectResult(None){DateParser.parseDate("2013-23-01")}
+  }
+
+  test("Invalid date day 32"){
+    expectResult(None){DateParser.parseDate("2013-01-32")}
   }
 
   test("yyyy-MM-00"){

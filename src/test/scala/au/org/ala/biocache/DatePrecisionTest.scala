@@ -93,7 +93,7 @@ class DatePrecisionTest extends FunSuite {
     val r = new FullRecord
     val p = new FullRecord
     p.event.eventDate = "2000-01-01"
-    p.event.eventDate = "2003-01-01"
+    p.event.eventDateEnd = "2003-01-01"
     r.event.datePrecision = "YY"
     val assertions = new ArrayBuffer[QualityAssertion]
     e.checkPrecision(r, p, assertions)
