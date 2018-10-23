@@ -355,6 +355,7 @@ object DateParser {
       case ISOWithMonthNameDate(date) => Some(date)
       case ISODateRange(date) => Some(date)
       case ISODayDateRange(date) => Some(date)
+      case ISOMonthYearDateRange(date) => Some(date)
       case ISOMonthDateRange(date) => Some(date)
       case ISOYearRange(date) => Some(date)
       case ISOVerboseDateTimeRange(date) => Some(date)
@@ -362,7 +363,6 @@ object DateParser {
 //      case NonISODateTime(date) => Some(date)
 //      case ISODayMonthRange(date)=>Some(date)
 //      case ISODateTimeRange(date) => Some(date)
-//      case ISOMonthYearDateRange(date) => Some(date)
       case _ => None
     }
   }
@@ -767,29 +767,42 @@ class DateRange {
 
 /** Extractor for the format uuuu-MM/uuuu-MM */
 object ISOMonthYearDateRange {
-
   def unapply(str: String): Option[EventDate] = {
     try {
+
       val parts = ParseUtil.splitRange(str)
       if (parts.length != 2) return None
-      val startDateParsed = DateUtils.parseDateStrictly(parts(0),
-        Array("uuuu-MM", "uuuu-MM-", "uuuu-MM-00"))
-      val endDateParsed = DateUtils.parseDateStrictly(parts(1),
-        Array("uuuu-MM", "uuuu-MM-","uuuu-MM-00"))
+      val startDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(0), Array(DateParser.YEAR_MONTH_TO_LOCAL_DATE))
 
-      val startDate, endDate = ""
-      val startDay, endDay = ""
-      val startMonth = DateFormatUtils.format(startDateParsed, "MM")
-      val endMonth = DateFormatUtils.format(endDateParsed, "MM")
-      val startYear = DateFormatUtils.format(startDateParsed, "uuuu")
-      val endYear = DateFormatUtils.format(endDateParsed, "uuuu")
-
-      val singleDate = (startMonth equals endMonth) && (startYear equals endYear)
-
-      Some(EventDate(startDateParsed, startDate, startDay, startMonth, startYear,
-        endDateParsed, endDate, endDay, endMonth: String, endYear, singleDate))
+      if (startDateParsed.isDefined) {
+        val startDateSerialised = startDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val startDate = startDateSerialised
+        val startYear = startDateParsed.get.format(DateParser.YEAR)
+        val startMonth = startDateParsed.get.format(DateParser.MONTH)
+        val startDay = startDateParsed.get.format(DateParser.DAY)
+        val startEventDateLegacyClass = DateParser.fromLocalDate(startDateParsed).get
+        val endDateParsed = Some(LocalDate.parse(parts(1), DateParser.YEAR_MONTH_TO_LOCAL_DATE))
+        if (endDateParsed.isDefined) {
+          var endYear = endDateParsed.get.format(DateParser.YEAR)
+          var endMonth = endDateParsed.get.format(DateParser.MONTH)
+          var endDay = endDateParsed.get.format(DateParser.DAY)
+          var endDate = Some(LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), 1))
+          val endDateSerialised = endDate.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
+          val endEventDateLegacyClass = DateParser.fromLocalDate(endDate).get
+          
+          Some(EventDate(startEventDateLegacyClass, startDate, startDay, startMonth, startYear, endEventDateLegacyClass, endDateSerialised, endDay,
+            endMonth: String, endYear, startDate.equals(endDate)))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
     } catch {
-      case e: ParseException => None
+      case e: Exception => {
+        DateParser.logger.warn("Could not parse ISOMonthDateRange: ", e)
+        None
+      }
     }
   }
 }
