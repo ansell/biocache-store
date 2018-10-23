@@ -353,13 +353,13 @@ object DateParser {
       case ISOMonthDate(date) => Some(date)
       case ISOSingleDate(date) => Some(date)
       case ISOWithMonthNameDate(date) => Some(date)
-      case ISOYearRange(date) => Some(date)
-      case ISOMonthDateRange(date) => Some(date)
       case ISODateRange(date) => Some(date)
+      case ISODayDateRange(date) => Some(date)
+      case ISOMonthDateRange(date) => Some(date)
+      case ISOYearRange(date) => Some(date)
       case ISOVerboseDateTimeRange(date) => Some(date)
       case ISOVerboseDateTime(date) => Some(date)
 //      case NonISODateTime(date) => Some(date)
-//      case ISODayDateRange(date) => Some(date)
 //      case ISODayMonthRange(date)=>Some(date)
 //      case ISODateTimeRange(date) => Some(date)
 //      case ISOMonthYearDateRange(date) => Some(date)
@@ -698,7 +698,8 @@ class DateRange {
 
   def formats = baseFormats
   
-  def parsedFormats = formats.map(f => DateParser.newDateFormat(f)) ++ Array(DateParser.OFFSET_DATE_OPTIONAL_TIME, DateParser.YEAR_MONTH_TO_LOCAL_DATE, DateParser.YEAR_TO_LOCAL_DATE, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)
+  //def parsedFormats = formats.map(f => DateParser.newDateFormat(f)) ++ Array(DateParser.OFFSET_DATE_OPTIONAL_TIME, DateParser.YEAR_MONTH_TO_LOCAL_DATE, DateParser.YEAR_TO_LOCAL_DATE, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)
+  def parsedFormats = formats.map(f => DateParser.newDateFormat(f)) ++ Array(DateParser.OFFSET_DATE_OPTIONAL_TIME, DateParser.NON_ISO_OFFSET_DATE_OPTIONAL_TIME)
   
   def unapply(str: String): Option[EventDate] = {
     try {
@@ -707,7 +708,8 @@ class DateRange {
       if (parts.length != 2) return None
       val startDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(0), parsedFormats)
       // Additionally support two digit years for the end date
-      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats ++ Array(DateParser.newTwoDigitYearDateFormat("", "", 1920, true, true, true)))
+//      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats ++ Array(DateParser.newTwoDigitYearDateFormat("", "", 1920, true, true, true)))
+      val endDateParsed: Option[LocalDate] = DateParser.parseISOOrFormats(parts(1), parsedFormats)
 
       if (startDateParsed.isDefined) {
         val startDateSerialised = startDateParsed.get.format(DateTimeFormatter.ISO_LOCAL_DATE)
@@ -729,24 +731,26 @@ class DateRange {
           
           Some(EventDate(startEventDateLegacyClass, startDate, startDay, startMonth, startYear, endEventDateLegacyClass, endDate, endDay,
             endMonth: String, endYear, startDate.equals(endDate)))
+//        } else {
+//          // Last resort to support the uuuu-MM-dd/M-d pattern
+//          val backupEndDateParsed = DateParser.parseByFormat(parts(1), Array(DateParser.SHORT_MONTH_HYPHEN_DAY))
+//          if(backupEndDateParsed.isDefined) {
+//            // Dummy year inserted in the SHORT_MONTH_HYPHEN_DAY parser, so substitute it with the startyear
+//            endYear = startYear
+//            endMonth = backupEndDateParsed.get.format(DateParser.MONTH)
+//            endDay = backupEndDateParsed.get.format(DateParser.DAY)
+//            // The backupEndDateParsed does not have a valid year value, so we can't expose it
+//            val endDateReparsed = LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), Integer.parseInt(endDay))
+//            endDate = endDateReparsed.format(DateTimeFormatter.ISO_LOCAL_DATE)
+//            val endEventDateLegacyClass = DateParser.fromLocalDate(Some(endDateReparsed)).get
+//            
+//            Some(EventDate(startEventDateLegacyClass, startDate, startDay, startMonth, startYear, endEventDateLegacyClass, endDate, endDay,
+//              endMonth: String, endYear, startDate.equals(endDate)))
+//          } else {
+//            None
+//          }
         } else {
-          // Last resort to support the uuuu-MM-dd/M-d pattern
-          val backupEndDateParsed = DateParser.parseByFormat(parts(1), Array(DateParser.SHORT_MONTH_HYPHEN_DAY))
-          if(backupEndDateParsed.isDefined) {
-            // Dummy year inserted in the SHORT_MONTH_HYPHEN_DAY parser, so substitute it with the startyear
-            endYear = startYear
-            endMonth = backupEndDateParsed.get.format(DateParser.MONTH)
-            endDay = backupEndDateParsed.get.format(DateParser.DAY)
-            // The backupEndDateParsed does not have a valid year value, so we can't expose it
-            val endDateReparsed = LocalDate.of(Integer.parseInt(endYear), Integer.parseInt(endMonth), Integer.parseInt(endDay))
-            endDate = endDateReparsed.format(DateTimeFormatter.ISO_LOCAL_DATE)
-            val endEventDateLegacyClass = DateParser.fromLocalDate(Some(endDateReparsed)).get
-            
-            Some(EventDate(startEventDateLegacyClass, startDate, startDay, startMonth, startYear, endEventDateLegacyClass, endDate, endDay,
-              endMonth: String, endYear, startDate.equals(endDate)))
-          } else {
-            None
-          }
+          None
         }
       } else {
         None
