@@ -10,6 +10,8 @@ import org.apache.commons.lang.time.{DateFormatUtils, DateUtils}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ArrayBuffer
+import java.time.format.DateTimeFormatter
+import java.time.LocalDate
 
 /**
   * Processor for event (date) information.
@@ -136,14 +138,14 @@ class EventProcessor extends Processor {
     if (validYear) processed.event.year = year.toString
     if (validMonth) processed.event.month = String.format("%02d", int2Integer(month)) //NC ensure that a month is 2 characters long
     if (validDay) processed.event.day = day.toString
-    if (!date.isEmpty) {
+    if (date.isDefined) {
       processed.event.eventDate = DateFormatUtils.format(date.get, "yyyy-MM-dd")
     }
 
     //deal with event date if we don't have separate day, month, year fields
-    if (date.isEmpty && raw.event.eventDate != null && !raw.event.eventDate.isEmpty) {
+    if (!date.isDefined && raw.event.eventDate != null && !raw.event.eventDate.isEmpty) {
       val parsedDate = DateParser.parseDate(raw.event.eventDate)
-      if (!parsedDate.isEmpty) {
+      if (parsedDate.isDefined) {
 
         //set our best date
         date = Some(parsedDate.get.parsedStartDate)
@@ -180,8 +182,9 @@ class EventProcessor extends Processor {
             }
         }
 
-        if (StringUtils.isNotBlank(parsedDate.get.startDate)) {
-          //we have a complete date
+        if(StringUtils.isNotBlank(parsedDate.get.startYear) 
+            && StringUtils.isNotBlank(parsedDate.get.startMonth) 
+            && StringUtils.isNotBlank(parsedDate.get.startDay)) {
           dateComplete = true
         }
 
@@ -201,16 +204,16 @@ class EventProcessor extends Processor {
     if (StringUtils.isNotEmpty(raw.event.eventDateEnd)) {
       //look for an end date
       val parsedDate = DateParser.parseDate(raw.event.eventDateEnd)
-      if (!parsedDate.isEmpty) {
+      if (parsedDate.isDefined) {
         //what happens if d m y make the eventDate and eventDateEnd is parsed?
         processed.event.eventDateEnd = parsedDate.get.startDate
       }
     }
 
     //deal with verbatim date if we havent had a parseable eventDate
-    if (date.isEmpty && raw.event.verbatimEventDate != null && !raw.event.verbatimEventDate.isEmpty) {
+    if (!date.isDefined && raw.event.verbatimEventDate != null && !raw.event.verbatimEventDate.isEmpty) {
       val parsedDate = DateParser.parseDate(raw.event.verbatimEventDate)
-      if (!parsedDate.isEmpty) {
+      if (parsedDate.isDefined) {
         //set processed values
         processed.event.eventDate = parsedDate.get.startDate
         if (!parsedDate.get.endDate.equals(parsedDate.get.startDate)) {
@@ -245,13 +248,17 @@ class EventProcessor extends Processor {
         }
 
         //we have a complete date
-        dateComplete = StringUtils.isNotBlank(parsedDate.get.startDate)
+        if(StringUtils.isNotBlank(parsedDate.get.startYear) 
+            && StringUtils.isNotBlank(parsedDate.get.startMonth) 
+            && StringUtils.isNotBlank(parsedDate.get.startDay)) {
+          dateComplete = true
+        }
       }
     } else if ((processed.event.eventDateEnd == null || processed.event.eventDateEnd.isEmpty()) &&
       raw.event.verbatimEventDate != null && !raw.event.verbatimEventDate.isEmpty) {
       //look for an end date
       val parsedDate = DateParser.parseDate(raw.event.verbatimEventDate)
-      if (!parsedDate.isEmpty && !parsedDate.get.endDate.equals(parsedDate.get.startDate)) {
+      if (parsedDate.isDefined && !parsedDate.get.endDate.equals(parsedDate.get.startDate)) {
         //what happens if d m y make the eventDate and eventDateEnd is parsed?
         if (!parsedDate.get.endDate.equals(parsedDate.get.startDate)) {
           processed.event.eventDateEnd = parsedDate.get.endDate
@@ -265,8 +272,8 @@ class EventProcessor extends Processor {
       addPassedInvalidCollectionDate = false
     }
 
-    //check for future date
-    if (!date.isEmpty && date.get.after(new Date())) {
+    //check for future date (after tomorrow to allow for observations from other parts of the world)
+    if (date.isDefined && LocalDate.parse(DateFormatUtils.format(date.get, "yyyy-MM-dd"), DateTimeFormatter.ISO_LOCAL_DATE).isAfter(LocalDate.now().plusDays(1))) {
       assertions += QualityAssertion(INVALID_COLLECTION_DATE, "Future date supplied")
       addPassedInvalidCollectionDate = false
     }
@@ -470,7 +477,9 @@ class EventProcessor extends Processor {
       if (matchedTerm.isDefined) {
         val term = matchedTerm.get
         processed.event.datePrecision = term.canonical
-        logger.info("raw datePrecision was: " + raw.event.datePrecision + ", Canonical datePrecision was: " + term.canonical)
+        if(logger.isDebugEnabled()) {
+          logger.debug("raw datePrecision was: " + raw.event.datePrecision + ", Canonical datePrecision was: " + term.canonical)
+        }
 
         if (term.canonical.equalsIgnoreCase(DAY_PRECISION)){
           //is the processed date in uuuu-MM format
@@ -610,7 +619,7 @@ class EventProcessor extends Processor {
           determinedDatePrecision = YEAR_RANGE_PRECISION
         }
 
-      } else if (!startDate.isEmpty){
+      } else if (startDate.isDefined){
         determinedDatePrecision = DAY_PRECISION
         //single date
         if (processed.event.day == null && processed.event.month != null && processed.event.year != null) {

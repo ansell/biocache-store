@@ -8,6 +8,8 @@ import java.text.SimpleDateFormat
 import au.org.ala.biocache.processor.EventProcessor
 import au.org.ala.biocache.model.FullRecord
 import au.org.ala.biocache.util.DateUtil
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 /**
  * Tests for event date parsing. To run these tests create a new scala application
@@ -22,6 +24,9 @@ import au.org.ala.biocache.util.DateUtil
 @RunWith(classOf[JUnitRunner])
 class ProcessEventTest extends ConfigFunSuite {
 
+  def QA_PASS: Integer = 1
+  def QA_FAIL: Integer = 0
+  
   test("00 month test"){
     val raw = new FullRecord("1234")
     raw.event.day ="0"
@@ -126,14 +131,14 @@ class ProcessEventTest extends ConfigFunSuite {
     raw.event.month = "16"
     raw.event.day = "6"
     val processed = raw.clone
-    val assertions = (new EventProcessor).process("1234", raw, processed)
+    val qas = (new EventProcessor).process("1234", raw, processed)
 
     expectResult("1978-06-16"){ processed.event.eventDate }
     expectResult("16"){ processed.event.day }
     expectResult("06"){ processed.event.month }
     expectResult("1978"){ processed.event.year }
-    //expectResult(1){ assertions.size }
-    expectResult(0){ assertions.find(_.code == 30009).get.qaStatus }
+    //expectResult(QA_PASS){ assertions.size }
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.DAY_MONTH_TRANSPOSED.code).get.getQaStatus}
   }
 
   test("invalid month test") {
@@ -144,15 +149,15 @@ class ProcessEventTest extends ConfigFunSuite {
     raw.event.month = "16"
     raw.event.day = "16"
 
-    val assertions = (new EventProcessor).process("1234", raw, processed)
+    val qas = (new EventProcessor).process("1234", raw, processed)
 
     expectResult(null){ processed.event.eventDate }
     expectResult("16"){ processed.event.day }
     expectResult(null){ processed.event.month }
     expectResult("1978"){ processed.event.year }
 
-    //expectResult(1){ assertions.size }
-    expectResult(0){ assertions.find(_.code == 30007).get.qaStatus }
+    //expectResult(QA_PASS){ assertions.size }
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("invalid month test > 12") {
@@ -163,15 +168,15 @@ class ProcessEventTest extends ConfigFunSuite {
     raw.event.month = "40"
     raw.event.day = "16"
 
-    val assertions = (new EventProcessor).process("1234", raw, processed)
+    val qas = (new EventProcessor).process("1234", raw, processed)
 
     expectResult(null){ processed.event.eventDate }
     expectResult("16"){ processed.event.day }
     expectResult(null){ processed.event.month }
     expectResult("1978"){ processed.event.year }
 
-    //expectResult(1){ assertions.size }
-    expectResult(0){ assertions.find(_.code == 30007).get.qaStatus }
+    //expectResult(QA_PASS){ assertions.size }
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("year = 11, month = 02, day = 01") {
@@ -182,7 +187,7 @@ class ProcessEventTest extends ConfigFunSuite {
     raw.event.month = "02"
     raw.event.day = "01"
 
-    val assertions = (new EventProcessor).process("1234", raw, processed)
+    val qas = (new EventProcessor).process("1234", raw, processed)
 
     expectResult("2011-02-01"){ processed.event.eventDate }
     expectResult("1"){ processed.event.day }
@@ -190,7 +195,7 @@ class ProcessEventTest extends ConfigFunSuite {
     expectResult("2011"){ processed.event.year }
 
     //expectResult(0){ assertions.size }
-    expectResult(1){ assertions.find(_.code == 30007).get.qaStatus }
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("1973-10-14") {
@@ -199,7 +204,7 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord("1234")
     raw.event.eventDate = "1973-10-14"
 
-    val assertions = (new EventProcessor).process("1234", raw, processed)
+    val qas = (new EventProcessor).process("1234", raw, processed)
 
     expectResult("1973-10-14"){ processed.event.eventDate }
     expectResult("14"){ processed.event.day }
@@ -207,7 +212,7 @@ class ProcessEventTest extends ConfigFunSuite {
     expectResult("1973"){ processed.event.year }
 
     //expectResult(0){ assertions.size }
-    expectResult(1){ assertions.find(_.code == 30007).get.qaStatus }
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("today"){
@@ -215,21 +220,21 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord("1234")
     val sf = new SimpleDateFormat("yyyy-MM-dd")
     raw.event.eventDate = sf.format(new Date())
-    val assertions = (new EventProcessor).process("1234", raw, processed)
+    val qas = (new EventProcessor).process("1234", raw, processed)
     expectResult(DateUtil.getCurrentYear.toString){ processed.event.year }
     //expectResult(0){ assertions.size }
-    expectResult(1){ assertions.find(_.code == 30007).get.qaStatus }
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
-  test("tomorrow"){
+  test("future date"){
     val raw = new FullRecord("1234")
     val processed = new FullRecord("1234")
-    val sf = new SimpleDateFormat("yyyy-MM-dd")
-    raw.event.eventDate = sf.format(DateUtils.addDays(new Date(),1))
-    val assertions = (new EventProcessor).process("1234", raw, processed)
+    // Add two days on, as one day in the future is not flagged to allow for observations from other parts of the world
+    raw.event.eventDate = LocalDate.now().plusDays(2).format(DateTimeFormatter.ISO_LOCAL_DATE)
+    val qas = (new EventProcessor).process("1234", raw, processed)
     expectResult(DateUtil.getCurrentYear.toString){ processed.event.year }
-    expectResult(true){ assertions.size > 0 }
-    expectResult(0){ assertions.find(_.code == 30007).get.qaStatus }
+    expectResult(true){ qas.size > 0 }
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test ("Identification predates the occurrence") {
@@ -239,84 +244,101 @@ class ProcessEventTest extends ConfigFunSuite {
     raw.event.eventDate = " 2013-01-01"
 
     var qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(0) {
+    expectResult(QA_FAIL) {
       //the identification happened before the collection !!
       qas.find {_.getName == "idPreOccurrence"}.get.qaStatus
     }
 
     raw.identification.dateIdentified = "2013-01-01"
     qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(1) {
+    expectResult(QA_PASS) {
       //the identification happened at the same time of the collection
       qas.find {_.getName == "idPreOccurrence"}.get.qaStatus
     }
   }
 
-  test ("Georeferencing postdates the occurrence") {
+  test ("Georeferencing postdates the occurrence: fail") {
     val raw = new FullRecord
     val processed = new FullRecord
     raw.location.georeferencedDate = "2013-04-01"
     raw.event.eventDate = " 2013-01-01"
 
-    var qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(0) {
+    val qas = (new EventProcessor).process("test", raw, processed)
+    expectResult(QA_FAIL) {
       //the georeferencing happened after the collection !!
       qas.find {_.getName == "georefPostDate"}.get.qaStatus
     }
+  }
 
+  test ("Georeferencing postdates the occurrence: pass") {
+    val raw = new FullRecord
+    val processed = new FullRecord
     raw.location.georeferencedDate = "2013-01-01"
-    qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(1) {
+    raw.event.eventDate = " 2013-01-01"
+    val qas = (new EventProcessor).process("test", raw, processed)
+    expectResult(QA_PASS) {
       //the georeferecing happened at the same time as the collection
       qas.find {_.getName == "georefPostDate"}.get.qaStatus
     }
   }
 
-  test("First of dates") {
+  test("First of month/year/century") {
     val raw = new FullRecord
-    var processed = new FullRecord
+    val processed = new FullRecord
     raw.event.day ="1"
     raw.event.month="1"
     raw.event.year="2000"
 
-    var qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(0) {
+    val qas = (new EventProcessor).process("test", raw, processed)
+    expectResult(QA_FAIL) {
       //date is first of month
       qas.find {_.getName == "firstOfMonth"}.get.qaStatus
     }
-    expectResult(0) {
+    expectResult(QA_FAIL) {
       //date is also the first of the year
       qas.find {_.getName == "firstOfYear"}.get.qaStatus
     }
-    expectResult(0) {
+    expectResult(QA_FAIL) {
       //date is also the first of the century
       qas.find {_.getName == "firstOfCentury"}.get.qaStatus
     }
+  }
 
+  test("First of month/year") {
+    val raw = new FullRecord
+    val processed = new FullRecord
+    raw.event.day ="1"
+    raw.event.month="1"
     raw.event.year="2001"
-    processed = new FullRecord
-    qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(0) {
+
+    val qas = (new EventProcessor).process("test", raw, processed)
+    expectResult(QA_FAIL) {
       //date is first of month
       qas.find {_.getName == "firstOfMonth"}.get.qaStatus
     }
-    expectResult(0) {
+    expectResult(QA_FAIL) {
       //date is also the first of the year
       qas.find {_.getName == "firstOfYear"}.get.qaStatus
     }
-    expectResult(1) {
+    expectResult(QA_PASS) {
       //date is NOT the first of the century
       qas.find {_.getName == "firstOfCentury"}.get.qaStatus
     }
+  }
 
+  test("First of month") {
+    val raw = new FullRecord
+    val processed = new FullRecord
+    raw.event.day ="1"
     raw.event.month="2"
-    processed = new FullRecord
-    qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(0) {
+    raw.event.year="2001"
+
+    val qas = (new EventProcessor).process("test", raw, processed)
+    expectResult(QA_FAIL) {
       //date is first of month
       qas.find {_.getName == "firstOfMonth"}.get.qaStatus
     }
-    expectResult(1) {
+    expectResult(QA_PASS) {
       //date is NOT the first of the year
       qas.find {_.getName == "firstOfYear"}.get.qaStatus
     }
@@ -324,11 +346,17 @@ class ProcessEventTest extends ConfigFunSuite {
       //date is NOT the first of the century  - not tested since the month is not January
       qas.find {_.getName == "firstOfCentury"}
     }
+  }
 
+  test("Not first of test") {
+    val raw = new FullRecord
+    val processed = new FullRecord
     raw.event.day = "2"
-    processed = new FullRecord
-    qas = (new EventProcessor).process("test", raw, processed)
-    expectResult(1) {
+    raw.event.month="2"
+    raw.event.year="2001"
+
+    val qas = (new EventProcessor).process("test", raw, processed)
+    expectResult(QA_PASS) {
       //date is NOT first of month
       qas.find {_.getName == "firstOfMonth"}.get.qaStatus
     }
@@ -359,8 +387,8 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord
     raw.event.year="2014"
     val qas = (new EventProcessor).process("test",raw,processed)
-    expectResult(0){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("valid and complete day, month and year") {
@@ -370,8 +398,8 @@ class ProcessEventTest extends ConfigFunSuite {
     raw.event.month="01"
     raw.event.day="11"
     val qas = (new EventProcessor).process("test",raw,processed)
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("valid but incomplete eventDate") {
@@ -379,8 +407,8 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord
     raw.event.eventDate="2014-02"
     val qas = (new EventProcessor).process("test",raw,processed)
-    expectResult(0){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("invalid date - year month") {
@@ -388,7 +416,7 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord
     raw.event.eventDate="2012-22"
     val qas = (new EventProcessor).process("test",raw,processed)
-    expectResult(0){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
   
   test("valid and complete event date") {
@@ -396,8 +424,17 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord
     raw.event.eventDate="2014-02-15"
     val qas = (new EventProcessor).process("test",raw,processed)
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+  }
+
+  test("valid and incomplete event date") {
+    val raw = new FullRecord
+    val processed = new FullRecord
+    raw.event.eventDate="2014-02"
+    val qas = (new EventProcessor).process("test",raw,processed)
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("valid and incomplete verbatim event date") {
@@ -405,8 +442,8 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord
     raw.event.verbatimEventDate="2014-02"
     val qas = (new EventProcessor).process("test",raw,processed)
-    expectResult(0){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_FAIL){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("valid and complete verbatim event date") {
@@ -414,8 +451,8 @@ class ProcessEventTest extends ConfigFunSuite {
     val processed = new FullRecord
     raw.event.verbatimEventDate="2014-02-15"
     val qas = (new EventProcessor).process("test",raw,processed)
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
-    expectResult(1){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INCOMPLETE_COLLECTION_DATE.code).get.getQaStatus}
+    expectResult(QA_PASS){qas.find(_.code ==au.org.ala.biocache.vocab.AssertionCodes.INVALID_COLLECTION_DATE.code).get.getQaStatus}
   }
 
   test("First Fleet Tests"){
