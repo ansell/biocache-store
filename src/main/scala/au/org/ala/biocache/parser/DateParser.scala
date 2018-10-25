@@ -474,7 +474,7 @@ case class EventDate(parsedStartDate: Date, startDate: String, startDay: String,
 /** Extractor for the format uuuu-MM-dd */
 object ISOWithMonthNameDate {
 
-  def baseFormats = Array("uuuu-MMMM-dd", "uuuu-MMMM-dd'T'hh:mm:ss", "uuuu-MMMM-dd'T'hh:mm-ss", "uuuu-MMMM-dd'T'HH:mm-ss", "uuuu-MMMM-dd'T'hh:mm'Z'", "uuuu-MMMM-dd'T'HH:mm'Z'")
+  def baseFormats = Array("uuuu-MMMM-dd", "uuuu-MMMM-dd'T'hh:mm:ss","uuuu-MMMM-dd'T'hh:mm:ss.SSS", "uuuu-MMMM-dd'T'hh:mm-ss", "uuuu-MMMM-dd'T'HH:mm-ss", "uuuu-MMMM-dd'T'hh:mm'Z'", "uuuu-MMMM-dd'T'HH:mm'Z'")
 
   def baseParseOffsets = false
   
