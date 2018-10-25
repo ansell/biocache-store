@@ -358,7 +358,6 @@ object DateParser {
       case ISODateTimeRange(date) => Some(date)
       case ISOVerboseDateTimeRange(date) => Some(date)
       case ISOVerboseDateTime(date) => Some(date)
-//      case NonISODateTime(date) => Some(date)
       case _ => None
     }
   }
@@ -445,36 +444,10 @@ object DateParser {
 case class EventDate(parsedStartDate: Date, startDate: String, startDay: String, startMonth: String, startYear: String,
                      parsedEndDate: Date, endDate: String, endDay: String, endMonth: String, endYear: String, singleDate: Boolean)
 
-///** Extractor for the format uuuu-MM-dd */
-//object NonISODateTime {
-//
-//  /**
-//   * Extraction method
-//   */
-//  def unapply(str: String): Option[EventDate] = {
-//    try {
-//      // 2011-02-09 00:39:00.000
-//      val eventDateParsed = DateUtils.parseDateStrictly(str,
-//        Array("uuuu-MM-dd HH:mm:ss.SSS", "uuuu/MM/dd HH:mm:ss.SSS", "uuuu/MM/dd HH.mm.ss.SSS"))
-//
-//      val startDate, endDate = DateFormatUtils.format(eventDateParsed, "uuuu-MM-dd")
-//      val startDay, endDay = DateFormatUtils.format(eventDateParsed, "dd")
-//      val startMonth, endMonth = DateFormatUtils.format(eventDateParsed, "MM")
-//      val startYear, endYear = DateFormatUtils.format(eventDateParsed, "uuuu")
-//
-//      Some(EventDate(eventDateParsed, startDate, startDay, startMonth, startYear, eventDateParsed, endDate, endDay,
-//        endMonth: String, endYear, true))
-//    } catch {
-//      case e: ParseException => None
-//      
-//    }
-//  }
-//}
-
 /** Extractor for the format uuuu-MM-dd */
 object ISOWithMonthNameDate {
 
-  def baseFormats = Array("uuuu-MMMM-dd", "uuuu-MMMM-dd'T'hh:mm:ss","uuuu-MMMM-dd'T'hh:mm:ss.SSS", "uuuu-MMMM-dd'T'hh:mm-ss", "uuuu-MMMM-dd'T'HH:mm-ss", "uuuu-MMMM-dd'T'hh:mm'Z'", "uuuu-MMMM-dd'T'HH:mm'Z'")
+  def baseFormats = Array("uuuu-MMMM-dd", "uuuu-MMMM-dd'T'hh:mm:ss","uuuu-MMMM-dd'T'hh:mm:ss.SSS",  "uuuu-MMMM-dd'T'HH:mm:ss","uuuu-MMMM-dd'T'HH:mm:ss.SSS", "uuuu-MMMM-dd'T'hh:mm-ss", "uuuu-MMMM-dd'T'HH:mm-ss", "uuuu-MMMM-dd'T'hh:mm'Z'", "uuuu-MMMM-dd'T'HH:mm'Z'")
 
   def baseParseOffsets = false
   
